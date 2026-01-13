@@ -29,7 +29,6 @@ const ChatsTab = () => {
     );
   }
 
-  // todo: test this out later
   const handleChatPress = (chat: Chat) => {
     router.push({
       pathname: "/chat/[id]",
