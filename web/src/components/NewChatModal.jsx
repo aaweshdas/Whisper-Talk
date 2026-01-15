@@ -16,7 +16,7 @@ export function NewChatModal({ onStartChat, isPending, isOpen, onClose }) {
   };
 
   const searchResults = allUsers.filter((u) => {
-    if (!searchQuery.trim()) return true;
+    if (!searchQuery.trim()) return false;
     const query = searchQuery.toLowerCase();
     return u.name?.toLowerCase().includes(query) || u.email?.toLowerCase().includes(query);
   });

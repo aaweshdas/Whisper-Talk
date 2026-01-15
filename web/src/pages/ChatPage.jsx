@@ -1,4 +1,4 @@
-import { UserButton, useUser } from "@clerk/clerk-react";
+import { UserButton } from "@clerk/clerk-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useSocketStore } from "../lib/socket";
@@ -19,7 +19,6 @@ import { NewChatModal } from "../components/NewChatModal";
 function ChatPage() {
   const { data: currentUser } = useCurrentUser();
 
-  const { user } = useUser();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeChatId = searchParams.get("chat");
 
@@ -50,7 +49,7 @@ function ChatPage() {
 
   const handleSend = (e) => {
     e.preventDefault();
-    if (!messageInput.trim() || !activeChatId || !socket || !user) return;
+    if (!messageInput.trim() || !activeChatId || !socket || !currentUser) return;
 
     const text = messageInput.trim();
     sendMessage(activeChatId, text, currentUser);
@@ -136,7 +135,7 @@ function ChatPage() {
                 </div>
               )}
 
-              {messages.length === 0 && <NoMessagesUI />}
+              {messages.length === 0 && !messagesLoading && <NoMessagesUI />}
 
               {messages.length > 0 &&
                 messages.map((msg) => (
