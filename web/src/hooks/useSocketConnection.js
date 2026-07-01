@@ -1,20 +1,20 @@
 import { useEffect } from "react";
-import { useAuth } from "@clerk/clerk-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSocketStore } from "../lib/socket";
+import { useAuthStore } from "../lib/auth";
 
 export const useSocketConnection = (activeChatId) => {
-  const { getToken, isSignedIn } = useAuth();
+  const { status, user, getToken } = useAuthStore();
+  const isAuthenticated = status === "authenticated";
   const queryClient = useQueryClient();
 
-  const { socket, connect, disconnect, joinChat, leaveChat } = useSocketStore();
+  const { socket, connect, disconnect, joinChat, leaveChat, setActiveChatId } = useSocketStore();
 
-  // connect socket on mount
+  // Connect socket when authenticated; disconnect on logout
   useEffect(() => {
-    if (isSignedIn) {
-      getToken().then((token) => {
-        if (token) connect(token, queryClient);
-      });
+    if (isAuthenticated) {
+      const token = getToken();
+      if (token) connect(token, queryClient, user?._id);
     } else {
       disconnect();
     }
@@ -22,13 +22,17 @@ export const useSocketConnection = (activeChatId) => {
     return () => {
       disconnect();
     };
-  }, [isSignedIn, connect, disconnect, getToken, queryClient]);
+  }, [isAuthenticated, connect, disconnect, queryClient, user?._id, getToken]);
 
-  // join/leave chat rooms - if you have a chatid in the url this will run
+  // Join / leave chat rooms — also track which chat is active for toast suppression
   useEffect(() => {
     if (activeChatId && socket) {
       joinChat(activeChatId);
-      return () => leaveChat(activeChatId);
+      setActiveChatId(activeChatId); // suppress notifications for this chat
+      return () => {
+        leaveChat(activeChatId);
+        setActiveChatId(null);       // allow notifications again
+      };
     }
-  }, [activeChatId, socket, joinChat, leaveChat]);
+  }, [activeChatId, socket, joinChat, leaveChat, setActiveChatId]);
 };

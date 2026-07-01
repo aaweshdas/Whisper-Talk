@@ -20,8 +20,8 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: allowedOrigins,
-    credentials: true, // allow credentials from client (cookies, authorization headers, etc.)
+    origin: process.env.NODE_ENV === "development" ? true : allowedOrigins,
+    credentials: true,
   })
 );
 

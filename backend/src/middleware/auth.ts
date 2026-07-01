@@ -1,29 +1,46 @@
 import type { Request, Response, NextFunction } from "express";
-import { getAuth } from "@clerk/express";
+import jwt from "jsonwebtoken";
 import { User } from "../models/User";
-import { requireAuth } from "@clerk/express";
 
 export type AuthRequest = Request & {
   userId?: string;
 };
 
-export const protectRoute = [
-  requireAuth(),
-  async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-      const { userId: clerkId } = getAuth(req);
-      // since we call requireAuth() this if check is not necessary
-      // if (!clerkId) return res.status(401).json({ message: "Unauthorized - invalid token" });
+/**
+ * Protects routes using our own JWT (signed with JWT_SECRET).
+ *
+ * All clients — Flutter mobile and the React web app — now authenticate via
+ * the custom JWT issued at /api/auth/register and /api/auth/login.
+ * The former Clerk fallback path has been removed since the web client was
+ * migrated to JWT-based auth.
+ *
+ * Token format:  Authorization: Bearer <jwt>
+ * JWT payload:   { userId: string }
+ */
+export const protectRoute = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.headers.authorization;
 
-      const user = await User.findOne({ clerkId });
-      if (!user) return res.status(404).json({ message: "User not found" });
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Unauthorized — no token provided" });
+  }
 
-      req.userId = user._id.toString();
+  const token = authHeader.split(" ")[1];
 
-      next();
-    } catch (error) {
-      res.status(500);
-      next(error);
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
-  },
-];
+
+    req.userId = user._id.toString();
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: "Unauthorized — invalid or expired token" });
+  }
+};

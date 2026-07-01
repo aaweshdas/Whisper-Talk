@@ -1,15 +1,13 @@
 <h1 align="center">✨ Full-Stack Realtime Chat App (Mobile + Web + API) ✨</h1>
 
-![Demo App](/web/public/screenshot-for-readme.png)
-
 ✨ **Highlights:**
 
-- 📱 Fully Functional Real-Time Chat Mobile App (React Native)
+- 📱 Fully Functional Real-Time Chat Mobile App (Flutter)
 - 💻 Web Chat Application (React) — Same API, Same Features
 - 💬 Real-Time Messaging (Built From Scratch — No 3rd Party Services)
 - ⌨️ Typing Indicators
 - 🟢 Online & Offline Presence
-- 🔐 Authentication with Clerk (React, React Native & Express SDKs)
+- 🔐 Custom JWT Authentication
 - 🌐 Shared Backend for Mobile & Web
 - 🧠 Custom Socket Server (No Firebase / Pusher / Ably)
 - 🚀 Backend with Bun, Express, MongoDB & TypeScript
@@ -17,13 +15,10 @@
 - 🎨 Clean, Modern & Production-Ready UI
 - 📱 Cross-Platform Development (iOS, Android & Web)
 - 🛠️ REST API Design & Implementation
-- 🧪 Error Monitoring & Crash Reporting with Sentry
 - 🚀 Deployment on Sevalla (Live API + Web App)
 - 🧰 Real-World Git & GitHub Workflow
-- 🌱 Feature Branches, Commits, Pull Requests & Merges
 - 🤖 Automated Code Reviews with CodeRabbit
 - 🔒 Secure & Scalable Architecture Best Practices
-- 📚 Learn React vs React Native by Building a Real Product
 - 🎯 From Absolute Beginner to Production-Level Real-Time App
 
 ---
@@ -38,50 +33,41 @@ MONGODB_URI=<YOUR_MONGO_URI>
 PORT=3000
 NODE_ENV=development
 
-CLERK_PUBLISHABLE_KEY=<YOUR_CLERK_PUBLISHABLE_KEY>
-CLERK_SECRET_KEY=<YOUR_CLERK_SECRET_KEY>
+JWT_SECRET=<YOUR_JWT_SECRET>
 
 FRONTEND_URL=http://localhost:5173
 ```
 
 ---
 
-### 🟩 Web Version (/web)
+### 🟩 Web Version (`/web`)
 
 ```bash
-VITE_CLERK_PUBLISHABLE_KEY=<YOUR_CLERK_PUBLISHABLE_KEY>
 VITE_API_URL=<YOUR_DEPLOYED_API_URL>
-
-VITE_SENTRY_DSN=<YOUR_SENTRY_DSN>
 ```
 
 ---
 
-### 🟧 Mobile App (/mobile)
+### 🟧 Mobile App (`/flutter_app`)
 
-```bash
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=<YOUR_CLERK_PUBLISHABLE_KEY>
+Configure API endpoints inside the Flutter application constants or `.env` equivalent.
 
-SENTRY_AUTH_TOKEN=<YOUR_SENTRY_AUTH_TOKEN>
-
-```
+---
 
 ## 🔧 Run the Backend
 
 ```bash
-
 cd backend
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 ---
 
-## 🔧 Run the Admin
+## 🔧 Run the Web
 
-```
-bash
-cd admin
+```bash
+cd web
 npm install
 npm run dev
 ```
@@ -90,10 +76,8 @@ npm run dev
 
 ## 🔧 Run the Mobile
 
-```
-bash
-cd mobile
-npm install
-npx expo start
-*And then scan the QR Code from your phone*
+```bash
+cd flutter_app
+flutter pub get
+flutter run
 ```
