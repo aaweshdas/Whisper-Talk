@@ -14,12 +14,22 @@ export function getIO(): Server {
 }
 
 export function initializeSocket(httpServer: HttpServer) {
+  const allowedSocketOrigins = [
+    "http://localhost:5173",
+    "http://localhost:8081",
+    "https://whisper-talk-five.vercel.app",
+    ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(",").map(u => u.trim()) : []),
+    ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(",").map(u => u.trim()) : []),
+  ].filter(Boolean);
+
   const io = new Server(httpServer, {
     cors: {
-      origin:
-        process.env.NODE_ENV === "development"
-          ? true
-          : process.env.CLIENT_URL || "http://localhost:5173",
+      origin: (origin, callback) => {
+        if (!origin || allowedSocketOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error(`Socket CORS: origin ${origin} not allowed`));
+      },
       credentials: true,
     },
   });
