@@ -152,11 +152,13 @@ export function VideoCallModal() {
     peerConnectionRef.current = pc;
 
     pc.ontrack = (event) => {
-      if (event.streams && event.streams[0]) {
-        setRemoteStream(event.streams[0]);
-      } else if (event.track) {
-        setRemoteStream(new MediaStream([event.track]));
-      }
+      setRemoteStream((prevStream) => {
+        const tracks = prevStream ? prevStream.getTracks() : [];
+        if (!tracks.find((t) => t.id === event.track.id)) {
+          tracks.push(event.track);
+        }
+        return new MediaStream(tracks);
+      });
     };
 
     pc.onicecandidate = (event) => {
