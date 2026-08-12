@@ -58,6 +58,7 @@ export function initializeSocket(httpServer: HttpServer) {
             text: text.trim(),
             replyTo: replyTo ? new Types.ObjectId(replyTo) : null,
             readBy: [{ user: new Types.ObjectId(senderId), readAt: new Date() }],
+            deliveredTo: [{ user: new Types.ObjectId(senderId), deliveredAt: new Date() }] // Track delivery
           });
 
           // Increment unread for other participants
@@ -77,9 +78,12 @@ export function initializeSocket(httpServer: HttpServer) {
           await msg.populate("sender", "name email avatar");
           if (msg.replyTo) await msg.populate("replyTo", "text sender");
 
-          io.to(chatId).emit("new-message", msg);
+          // Send to ALL participants in their personal rooms
+          chat.participants.forEach((p) => {
+            io.to(p.toString()).emit("new-message", msg);
+          });
 
-          // Notify offline participants
+          // Update chats in sidebar for offline users
           for (const otherId of others) {
             io.to(otherId.toString()).emit("chat-updated", {
               chatId,
@@ -159,9 +163,40 @@ export function initializeSocket(httpServer: HttpServer) {
           { arrayFilters: [{ "elem.user": new Types.ObjectId(userId) }] }
         );
 
+        // Tell the chat that messages were read
         socket.to(chatId).emit("messages-read", { chatId, readBy: userId });
+        
+        // Also inform users directly in case they don't have the chat open
+        const chat = await Chat.findById(chatId);
+        if (chat) {
+           chat.participants.forEach((p) => {
+             io.to(p.toString()).emit("messages-read", { chatId, readBy: userId });
+           });
+        }
       } catch (err) {
         console.error("[socket] mark-read error:", err);
+      }
+    });
+    
+    // ── MARK DELIVERED ────────────────────────────────────────────────────────
+    socket.on("mark-delivered", async (data: { messageIds: string[]; userId: string; chatId: string }) => {
+      try {
+        const { messageIds, userId, chatId } = data;
+        if (!messageIds || messageIds.length === 0) return;
+
+        await Message.updateMany(
+          { _id: { $in: messageIds }, "deliveredTo.user": { $ne: userId } },
+          { $push: { deliveredTo: { user: new Types.ObjectId(userId), deliveredAt: new Date() } } }
+        );
+        
+        const chat = await Chat.findById(chatId);
+        if (chat) {
+           chat.participants.forEach((p) => {
+             io.to(p.toString()).emit("messages-delivered", { messageIds, deliveredTo: userId, chatId });
+           });
+        }
+      } catch (err) {
+        console.error("[socket] mark-delivered error:", err);
       }
     });
 
@@ -193,10 +228,16 @@ export function initializeSocket(httpServer: HttpServer) {
     });
 
     // ── DISCONNECT ────────────────────────────────────────────────────────────
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       for (const [uid, sid] of onlineUsers.entries()) {
         if (sid === socket.id) {
           onlineUsers.delete(uid);
+          try {
+            const User = require("../models/User").User;
+            await User.findByIdAndUpdate(uid, { lastSeen: new Date() });
+          } catch (err) {
+            console.error("[socket] update lastSeen error:", err);
+          }
           break;
         }
       }

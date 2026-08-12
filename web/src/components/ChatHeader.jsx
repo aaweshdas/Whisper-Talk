@@ -7,16 +7,40 @@ export function ChatHeader({ user, chatId, onToggleInfo }) {
   const { data: currentUser } = useCurrentUser();
 
   const handleVideoCall = () => {
-    startCall(user._id);
+    startCall(user._id, "video");
+  };
+
+  const handleVoiceCall = () => {
+    startCall(user._id, "voice");
   };
 
   const isOnline = onlineUsers.has(user?._id);
   const isTyping = typingUsers.get(chatId) === user?._id;
 
+  const formatLastSeen = (dateString) => {
+    if (!dateString) return "Offline";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Offline";
+    
+    const now = new Date();
+    const isToday = date.getDate() === now.getDate() && 
+                    date.getMonth() === now.getMonth() && 
+                    date.getFullYear() === now.getFullYear();
+                    
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    if (isToday) {
+      return `Last seen today at ${timeStr}`;
+    }
+    
+    const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return `Last seen ${dateStr} at ${timeStr}`;
+  };
+
   return (
-    <div className="h-16 px-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white/80 dark:bg-slate-950/80 backdrop-blur-md sticky top-0 z-10">
+    <div className="h-24 px-6 flex items-center justify-between bg-slate-900/60 backdrop-blur-xl border-b border-white/5 z-10 sticky top-0 shadow-sm">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-300 font-medium overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+        <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-medium overflow-hidden border-2 border-white/10 shadow-sm shrink-0">
           {user?.avatar ? (
             <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
           ) : (
@@ -24,7 +48,7 @@ export function ChatHeader({ user, chatId, onToggleInfo }) {
           )}
         </div>
         <div className="flex flex-col">
-          <span className="font-semibold text-slate-900 dark:text-white leading-tight">
+          <span className="font-bold text-lg text-white leading-tight drop-shadow-sm">
             {user?.name || "Unknown User"}
           </span>
           <div className="flex items-center gap-1.5 mt-0.5">
@@ -35,10 +59,12 @@ export function ChatHeader({ user, chatId, onToggleInfo }) {
             ) : isOnline ? (
               <>
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Online</span>
+                <span className="text-xs font-medium text-slate-300">Online</span>
               </>
             ) : (
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Offline</span>
+              <span className="text-xs font-medium text-slate-400">
+                {formatLastSeen(user?.lastSeen)}
+              </span>
             )}
           </div>
         </div>
@@ -46,21 +72,27 @@ export function ChatHeader({ user, chatId, onToggleInfo }) {
 
       <div className="flex items-center gap-1.5 sm:gap-3">
         <button 
+          onClick={handleVoiceCall}
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-300 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+        >
+          <PhoneIcon className="w-5 h-5" />
+        </button>
+        <button 
           onClick={handleVideoCall}
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:text-slate-400 dark:hover:text-primary-400 dark:hover:bg-primary-900/20 transition-colors"
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-300 hover:text-primary-400 hover:bg-primary-500/10 transition-colors"
         >
           <VideoIcon className="w-5 h-5" />
         </button>
-        <div className="w-px h-5 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
+        <div className="w-px h-6 bg-white/10 mx-2 hidden sm:block"></div>
         <button 
           onClick={onToggleInfo}
-          className="w-9 h-9 hidden sm:flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+          className="w-10 h-10 hidden sm:flex items-center justify-center rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
         >
           <InfoIcon className="w-5 h-5" />
         </button>
         <button 
           onClick={onToggleInfo}
-          className="w-9 h-9 sm:hidden flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+          className="w-10 h-10 sm:hidden flex items-center justify-center rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
         >
           <MoreVerticalIcon className="w-5 h-5" />
         </button>

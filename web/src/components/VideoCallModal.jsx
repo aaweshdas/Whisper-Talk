@@ -3,6 +3,7 @@ import { useSocketStore } from "../lib/socket";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import {
   PhoneOffIcon,
+  PhoneIcon,
   VideoIcon,
   VideoOffIcon,
   MicIcon,
@@ -23,6 +24,7 @@ export function VideoCallModal() {
     sendIceCandidate,
     clearCallState,
     initiateCall,
+    activeCallType,
   } = useSocketStore();
 
   const { data: currentUser } = useCurrentUser();
@@ -166,13 +168,15 @@ export function VideoCallModal() {
 
   const startCall = async () => {
     try {
+      const isVideo = activeCallType === "video";
       const constraints = {
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: isVideo ? { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } : false,
         audio: true,
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       setLocalStream(stream);
+      setIsVideoOff(!isVideo);
 
       const pc = createPeerConnection(activeCallUserId);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -180,7 +184,7 @@ export function VideoCallModal() {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      initiateCall(activeCallUserId, offer, currentUser);
+      initiateCall(activeCallUserId, offer, currentUser, activeCallType);
     } catch (err) {
       console.error("[webrtc] startCall error:", err);
       clearCallState();
@@ -206,13 +210,15 @@ export function VideoCallModal() {
 
   const handleAnswer = async () => {
     try {
+      const isVideo = incomingCall.type === "video";
       const constraints = {
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: isVideo ? { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } : false,
         audio: true,
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       setLocalStream(stream);
+      setIsVideoOff(!isVideo);
 
       const pc = createPeerConnection(incomingCall.from);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -298,7 +304,7 @@ export function VideoCallModal() {
 
           <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-2 tracking-tight">{incomingCall.name}</h2>
           <p className="text-sm mb-8 text-slate-500 dark:text-slate-400">
-            Incoming video call...
+            Incoming {incomingCall.type === "voice" ? "voice" : "video"} call...
           </p>
 
           <div className="flex items-center gap-6">
@@ -317,7 +323,11 @@ export function VideoCallModal() {
         <div className="modal-content w-96 flex flex-col items-center text-center !p-10">
           <div className="relative mb-6">
             <div className="w-24 h-24 rounded-full flex items-center justify-center relative z-10 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md">
-              <VideoIcon className="w-10 h-10 text-slate-400 dark:text-slate-500" />
+              {activeCallType === "voice" ? (
+                <PhoneIcon className="w-10 h-10 text-slate-400 dark:text-slate-500" />
+              ) : (
+                <VideoIcon className="w-10 h-10 text-slate-400 dark:text-slate-500" />
+              )}
             </div>
             <div className="absolute inset-[-16px] rounded-full border border-slate-300 dark:border-slate-600 animate-ping opacity-30" />
           </div>
@@ -348,12 +358,18 @@ export function VideoCallModal() {
             autoPlay
             playsInline
             className="absolute inset-0 w-full h-full object-cover"
-            style={{ display: remoteStream ? "block" : "none" }}
+            style={{ display: remoteStream && !isVideoOff ? "block" : "none" }}
           />
-          {!remoteStream && (
+          {(!remoteStream || isVideoOff) && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
-              <div className="w-10 h-10 rounded-full mb-4 border-2 border-slate-700 border-t-primary-500 animate-spin" />
-              <span className="text-slate-400 text-sm font-medium">Connecting...</span>
+              {remoteStream ? (
+                <div className="w-24 h-24 rounded-full bg-slate-800 flex items-center justify-center mb-6 border border-slate-700">
+                  <PhoneIcon className="w-10 h-10 text-slate-500" />
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-full mb-4 border-2 border-slate-700 border-t-primary-500 animate-spin" />
+              )}
+              <span className="text-slate-400 text-sm font-medium">{remoteStream ? "Voice Call" : "Connecting..."}</span>
             </div>
           )}
 
@@ -404,7 +420,9 @@ export function VideoCallModal() {
           >
             <div className="flex items-center justify-center gap-4">
               <ControlBtn active={isMuted} icon={isMuted ? <MicOffIcon className="w-5 h-5" /> : <MicIcon className="w-5 h-5" />} onClick={toggleMute} />
-              <ControlBtn active={isVideoOff} icon={isVideoOff ? <VideoOffIcon className="w-5 h-5" /> : <VideoIcon className="w-5 h-5" />} onClick={toggleVideo} />
+              {(activeCallType === "video" || incomingCall?.type === "video") && (
+                <ControlBtn active={isVideoOff} icon={isVideoOff ? <VideoOffIcon className="w-5 h-5" /> : <VideoIcon className="w-5 h-5" />} onClick={toggleVideo} />
+              )}
               <button onClick={handleHangup} className="btn-danger w-14 h-14 !rounded-full flex items-center justify-center shadow-lg ml-2 hover:scale-105">
                 <PhoneOffIcon className="w-6 h-6" />
               </button>

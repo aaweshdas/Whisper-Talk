@@ -3,7 +3,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: "Inter", "Roobert", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Space Grotesk", "Inter", "Roobert", "Helvetica Neue", Helvetica, Arial, sans-serif;
   
   --color-primary-50: #eef2ff;
   --color-primary-100: #e0e7ff;
@@ -53,17 +53,26 @@
 
   /* Custom Scrollbar for a premium feel */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 10px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-400 dark:bg-slate-600;
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+  
+  /* For Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   }
 }
 

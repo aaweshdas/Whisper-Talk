@@ -10,6 +10,11 @@ export interface IReadReceipt {
   readAt: Date;
 }
 
+export interface IDeliveredReceipt {
+  user: mongoose.Types.ObjectId;
+  deliveredAt: Date;
+}
+
 export interface IMessage extends Document {
   chat: mongoose.Types.ObjectId;
   sender: mongoose.Types.ObjectId;
@@ -22,6 +27,7 @@ export interface IMessage extends Document {
   };
   reactions: IReaction[];
   readBy: IReadReceipt[];
+  deliveredTo: IDeliveredReceipt[];
   deletedForEveryone: boolean;
   deletedBy: mongoose.Types.ObjectId[];
   editedAt?: Date;
@@ -46,6 +52,14 @@ const ReadReceiptSchema = new Schema<IReadReceipt>(
   { _id: false }
 );
 
+const DeliveredReceiptSchema = new Schema<IDeliveredReceipt>(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    deliveredAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const MessageSchema = new Schema<IMessage>(
   {
     chat: { type: Schema.Types.ObjectId, ref: "Chat", required: true },
@@ -59,6 +73,7 @@ const MessageSchema = new Schema<IMessage>(
     },
     reactions: { type: [ReactionSchema], default: [] },
     readBy: { type: [ReadReceiptSchema], default: [] },
+    deliveredTo: { type: [DeliveredReceiptSchema], default: [] },
     deletedForEveryone: { type: Boolean, default: false },
     deletedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
     editedAt: { type: Date, default: null },

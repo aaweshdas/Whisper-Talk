@@ -24,10 +24,12 @@ export const useSendMessage = (chatId) => {
       return res.data;
     },
     onSuccess: (newMessage) => {
-      // Optimistically append to messages cache
-      queryClient.setQueryData(["messages", chatId], (old) =>
-        old ? [...old, newMessage] : [newMessage]
-      );
+      // Optimistically append to messages cache, checking for duplicates
+      queryClient.setQueryData(["messages", chatId], (old) => {
+        if (!old) return [newMessage];
+        const exists = old.some((m) => m._id === newMessage._id);
+        return exists ? old : [...old, newMessage];
+      });
       // Refresh chat list so lastMessage updates
       queryClient.invalidateQueries({ queryKey: ["chats"] });
     },

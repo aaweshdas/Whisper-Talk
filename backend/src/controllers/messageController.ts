@@ -60,7 +60,7 @@ export async function sendMessage(req: AuthRequest, res: Response, next: NextFun
     try {
       const io = getIO();
       chat.participants.forEach((participantId) => {
-        io.to(participantId.toString()).emit("newMessage", populated);
+        io.to(participantId.toString()).emit("new-message", populated);
       });
     } catch (_) {
       // socket not critical — message is already saved
@@ -110,7 +110,7 @@ export async function sendAttachment(req: AuthRequest, res: Response, next: Next
     try {
       const io = getIO();
       chat.participants.forEach((participantId) => {
-        io.to(participantId.toString()).emit("newMessage", populated);
+        io.to(participantId.toString()).emit("new-message", populated);
       });
     } catch (_) {}
 

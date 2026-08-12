@@ -108,7 +108,14 @@ export const useSocketStore = create((set, get) => ({
       // Only notify for messages from other users
       if (senderId === userId) return;
 
-      // Suppress if the user is currently viewing this exact conversation
+      // Determine delivery vs read status based on active chat
+      if (get().activeChatId === message.chat) {
+        get().socket?.emit("mark-read", { chatId: message.chat, userId });
+      } else {
+        get().socket?.emit("mark-delivered", { chatId: message.chat, userId, messageIds: [message._id] });
+      }
+
+      // Suppress toast if the user is currently viewing this exact conversation
       if (get().activeChatId === message.chat) return;
 
       // Check if chat is muted
@@ -121,11 +128,10 @@ export const useSocketStore = create((set, get) => ({
           ? message.sender?.name ?? message.sender?.username ?? ""
           : "";
 
+      // Show toast since they aren't looking at the chat
       showMessageToast({
         senderName,
-        text: message.deletedForEveryone
-          ? "This message was deleted"
-          : message.text,
+        text: message.deletedForEveryone ? "This message was deleted" : message.text,
         chatId: message.chat,
       });
     });
@@ -174,6 +180,22 @@ export const useSocketStore = create((set, get) => ({
       );
     });
 
+    // Messages delivered to other user
+    socket.on("messages-delivered", ({ chatId, deliveredTo, messageIds }) => {
+      queryClient.setQueryData(["messages", chatId], (old) =>
+        old?.map((m) => {
+          if (!messageIds.includes(m._id)) return m;
+          if (m.sender?._id === deliveredTo) return m;
+          const alreadyDelivered = m.deliveredTo?.some((r) => r.user === deliveredTo || r.user?._id === deliveredTo);
+          if (alreadyDelivered) return m;
+          return {
+            ...m,
+            deliveredTo: [...(m.deliveredTo || []), { user: deliveredTo, deliveredAt: new Date().toISOString() }],
+          };
+        })
+      );
+    });
+
     // Chat-level updates (new message while chat not open)
     socket.on("chat-updated", ({ chatId, lastMessage, lastMessageAt, unreadIncrement }) => {
       queryClient.setQueryData(["chats"], (old) =>
@@ -191,8 +213,8 @@ export const useSocketStore = create((set, get) => ({
     });
 
     // ── WebRTC Signaling Events ──────────────────────────────────────────────
-    socket.on("call-user", ({ from, name, avatar, signal }) => {
-      set({ incomingCall: { from, name, avatar, signal }, callState: "ringing" });
+    socket.on("call-user", ({ from, name, avatar, signal, type }) => {
+      set({ incomingCall: { from, name, avatar, signal, type }, callState: "ringing" });
     });
 
     socket.on("call-accepted", (signal) => {
@@ -289,19 +311,24 @@ export const useSocketStore = create((set, get) => ({
     get().socket?.emit("mark-read", { chatId, userId });
   },
 
-  // ── WebRTC Actions (always video+audio) ──────────────────────────────────
-  startCall: (userToCallId) => {
-    set({ callState: "calling", activeCallUserId: userToCallId, iceCandidates: [], remoteSignal: null });
+  markDelivered: (chatId, userId, messageIds) => {
+    get().socket?.emit("mark-delivered", { chatId, userId, messageIds });
   },
 
-  initiateCall: (userToCall, signalData, currentUser) => {
+  // ── WebRTC Actions (always video+audio) ──────────────────────────────────
+  activeCallType: "video", // "video" | "voice"
+  startCall: (userToCallId, type = "video") => {
+    set({ callState: "calling", activeCallUserId: userToCallId, activeCallType: type, iceCandidates: [], remoteSignal: null });
+  },
+
+  initiateCall: (userToCall, signalData, currentUser, type = "video") => {
     get().socket?.emit("call-user", {
       userToCall,
       signalData,
       from: currentUser._id,
       name: currentUser.name || currentUser.fullName || currentUser.firstName || "You",
       avatar: currentUser.avatar || currentUser.imageUrl,
-      type: "video",
+      type,
     });
   },
 

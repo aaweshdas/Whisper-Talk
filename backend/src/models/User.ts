@@ -2,6 +2,7 @@ import mongoose, { Schema, type Document } from "mongoose";
 
 export interface IUser extends Document {
   name: string;
+  username?: string;
   email: string;
   avatar: string;
   password?: string;
@@ -9,6 +10,7 @@ export interface IUser extends Document {
   authProvider: "email" | "google";
   blockedUsers: mongoose.Types.ObjectId[];
   bio?: string;
+  lastSeen?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,6 +18,7 @@ export interface IUser extends Document {
 const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
+    username: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     avatar: { type: String, default: "" },
     password: { type: String, select: false },
@@ -23,6 +26,7 @@ const UserSchema = new Schema<IUser>(
     authProvider: { type: String, enum: ["email", "google"], default: "email" },
     blockedUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     bio: { type: String, default: "", trim: true },
+    lastSeen: { type: Date },
   },
   { timestamps: true }
 );

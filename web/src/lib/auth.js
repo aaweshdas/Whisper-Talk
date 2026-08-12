@@ -41,10 +41,10 @@ export const useAuthStore = create((set, get) => ({
   },
 
   // ── Register ─────────────────────────────────────────────────────────────
-  register: async (name, email, password) => {
+  register: async (name, username, email, password) => {
     set({ status: "loading", error: null });
     try {
-      const { data } = await api.post("/auth/register", { name, email, password });
+      const { data } = await api.post("/auth/register", { name, username, email, password });
       saveToken(data.token);
       set({ token: data.token, user: data.user, status: "authenticated", error: null });
     } catch (err) {
@@ -54,22 +54,22 @@ export const useAuthStore = create((set, get) => ({
   },
 
   // ── Login ────────────────────────────────────────────────────────────────
-  login: async (email, password) => {
+  login: async (emailOrUsername, password) => {
     set({ status: "loading", error: null });
     try {
-      // First try with the real email the user typed
-      const { data } = await api.post("/auth/login", { email, password });
+      // Try with the real email or username the user typed
+      const { data } = await api.post("/auth/login", { emailOrUsername, password });
       saveToken(data.token);
       set({ token: data.token, user: data.user, status: "authenticated", error: null });
     } catch (firstErr) {
       // Fallback: accounts created before the email fix were stored with a fake @whisper.app address
       try {
-        const legacyEmail = `${email.trim().toLowerCase().replace(/[@.\s]+/g, "_")}@whisper.app`;
-        const { data } = await api.post("/auth/login", { email: legacyEmail, password });
+        const legacyEmail = `${emailOrUsername.trim().toLowerCase().replace(/[@.\s]+/g, "_")}@whisper.app`;
+        const { data } = await api.post("/auth/login", { emailOrUsername: legacyEmail, password });
         saveToken(data.token);
         set({ token: data.token, user: data.user, status: "authenticated", error: null });
       } catch {
-        const msg = firstErr.response?.data?.message ?? "Invalid email or password";
+        const msg = firstErr.response?.data?.message ?? "Invalid credentials";
         set({ status: "unauthenticated", error: msg });
       }
     }

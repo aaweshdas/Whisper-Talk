@@ -31,7 +31,7 @@ export async function getChats(req: AuthRequest, res: Response, next: NextFuncti
     const userId = req.userId!;
 
     const chats = await Chat.find({ participants: userId })
-      .populate("participants", "name email avatar")
+      .populate("participants", "name email avatar lastSeen")
       .populate({ path: "lastMessage", populate: { path: "sender", select: "name" } })
       .sort({ lastMessageAt: -1 });
 
@@ -62,13 +62,13 @@ export async function getOrCreateChat(req: AuthRequest, res: Response, next: Nex
     if (userId === participantId) return res.status(400).json({ message: "Cannot create chat with yourself" });
 
     let chat = await Chat.findOne({ participants: { $all: [userId, participantId] } })
-      .populate("participants", "name email avatar")
+      .populate("participants", "name email avatar lastSeen")
       .populate({ path: "lastMessage", populate: { path: "sender", select: "name" } });
 
     if (!chat) {
       const newChat = new Chat({ participants: [userId, participantId] });
       await newChat.save();
-      chat = await newChat.populate("participants", "name email avatar");
+      chat = await newChat.populate("participants", "name email avatar lastSeen");
     }
 
     res.json(formatChat(chat, userId));
@@ -89,13 +89,13 @@ export async function createChat(req: AuthRequest, res: Response, next: NextFunc
     if (userId === participantId) return res.status(400).json({ message: "Cannot create chat with yourself" });
 
     let chat = await Chat.findOne({ participants: { $all: [userId, participantId] } })
-      .populate("participants", "name email avatar")
+      .populate("participants", "name email avatar lastSeen")
       .populate({ path: "lastMessage", populate: { path: "sender", select: "name" } });
 
     if (!chat) {
       const newChat = new Chat({ participants: [userId, participantId] });
       await newChat.save();
-      chat = await newChat.populate("participants", "name email avatar");
+      chat = await newChat.populate("participants", "name email avatar lastSeen");
     }
 
     res.json(formatChat(chat, userId));

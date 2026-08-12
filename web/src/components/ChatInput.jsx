@@ -12,6 +12,7 @@ export function ChatInput({ chatId, replyingTo, onCancelReply }) {
   const [showEmoji, setShowEmoji] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const isSubmittingRef = useRef(false);
 
   const sendMessage = useSendMessage(chatId);
   const sendAttachment = useSendAttachment();
@@ -31,8 +32,17 @@ export function ChatInput({ chatId, replyingTo, onCancelReply }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
-    sendMessage.mutate({ text, replyTo: replyingTo?._id });
+    if (!text.trim() || isSubmittingRef.current) return;
+    
+    isSubmittingRef.current = true;
+    sendMessage.mutate(
+      { text, replyTo: replyingTo?._id },
+      {
+        onSettled: () => {
+          isSubmittingRef.current = false;
+        },
+      }
+    );
     setText("");
     setShowEmoji(false);
     if (onCancelReply) onCancelReply();
@@ -97,7 +107,7 @@ export function ChatInput({ chatId, replyingTo, onCancelReply }) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex items-end gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500 transition-all">
+      <form onSubmit={handleSubmit} className="flex items-end gap-2 bg-slate-900/40 border border-white/10 rounded-xl p-1 shadow-inner focus-within:ring-2 focus-within:ring-primary-500/30 focus-within:border-primary-500 transition-all backdrop-blur-md">
         <div className="flex gap-1 p-1">
           <input
             type="file"
@@ -111,7 +121,7 @@ export function ChatInput({ chatId, replyingTo, onCancelReply }) {
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
             className={`w-9 h-9 flex flex-shrink-0 items-center justify-center rounded-lg transition-colors ${
-              isUploading ? "text-primary-500 animate-pulse" : "text-slate-400 hover:text-slate-700 hover:bg-slate-200 dark:hover:text-slate-200 dark:hover:bg-slate-800"
+              isUploading ? "text-primary-500 animate-pulse" : "text-slate-400 hover:text-white hover:bg-white/10"
             }`}
           >
             <PaperclipIcon className="w-5 h-5" />
@@ -122,7 +132,7 @@ export function ChatInput({ chatId, replyingTo, onCancelReply }) {
           value={text}
           onChange={handleTextChange}
           placeholder="Message..."
-          className="flex-1 max-h-32 min-h-[44px] bg-transparent border-0 resize-none py-2.5 px-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-0 leading-relaxed"
+          className="flex-1 max-h-32 min-h-[44px] bg-transparent border-0 resize-none py-2.5 px-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-0 leading-relaxed"
           style={{ lineHeight: "1.5" }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -137,7 +147,7 @@ export function ChatInput({ chatId, replyingTo, onCancelReply }) {
             type="button"
             onClick={() => setShowEmoji(!showEmoji)}
             className={`w-9 h-9 flex flex-shrink-0 items-center justify-center rounded-lg transition-colors ${
-              showEmoji ? "text-primary-600 bg-primary-50 dark:text-primary-400 dark:bg-primary-900/20" : "text-slate-400 hover:text-slate-700 hover:bg-slate-200 dark:hover:text-slate-200 dark:hover:bg-slate-800"
+              showEmoji ? "text-primary-400 bg-primary-900/20" : "text-slate-400 hover:text-white hover:bg-white/10"
             }`}
           >
             <SmileIcon className="w-5 h-5" />

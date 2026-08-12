@@ -28,18 +28,22 @@ export async function getMe(req: AuthRequest, res: Response, next: NextFunction)
 
 export async function register(req: Request, res: Response, next: NextFunction) {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).json({ message: "Name, email and password are required" });
+    const { name, username, email, password } = req.body;
+    if (!name || !username || !email || !password)
+      return res.status(400).json({ message: "Name, username, email and password are required" });
 
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(409).json({ message: "Email already in use" });
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) return res.status(409).json({ message: "Email already in use" });
+
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) return res.status(409).json({ message: "Username already in use" });
 
     const hashed = await bcrypt.hash(password, 12);
     const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=F4A261&color=fff&size=200`;
 
     const user = await User.create({
       name,
+      username,
       email,
       password: hashed,
       avatar,
@@ -47,7 +51,7 @@ export async function register(req: Request, res: Response, next: NextFunction) 
     });
 
     const token = signToken(user._id.toString());
-    res.status(201).json({ token, user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar } });
+    res.status(201).json({ token, user: { _id: user._id, name: user.name, username: user.username, email: user.email, avatar: user.avatar } });
   } catch (error) {
     res.status(500);
     next(error);
@@ -58,17 +62,21 @@ export async function register(req: Request, res: Response, next: NextFunction) 
 
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: "Email and password are required" });
+    const { emailOrUsername, password } = req.body; // emailOrUsername handles both
+    if (!emailOrUsername || !password) return res.status(400).json({ message: "Email/Username and password are required" });
 
-    const user = await User.findOne({ email, authProvider: "email" }).select("+password");
+    const user = await User.findOne({
+      $or: [{ email: emailOrUsername }, { username: emailOrUsername }],
+      authProvider: "email",
+    }).select("+password");
+
     if (!user || !user.password) return res.status(401).json({ message: "Invalid credentials" });
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ message: "Invalid credentials" });
 
     const token = signToken(user._id.toString());
-    res.json({ token, user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar } });
+    res.json({ token, user: { _id: user._id, name: user.name, username: user.username, email: user.email, avatar: user.avatar } });
   } catch (error) {
     res.status(500);
     next(error);
@@ -121,16 +129,27 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
     }
 
     // ── Case 3: New user — create account ────────────────────────────────────
+    
+    // Auto-generate a safe username from the email
+    const baseUsername = email!.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+    let uniqueUsername = baseUsername;
+    let counter = 1;
+    while (await User.findOne({ username: uniqueUsername })) {
+      uniqueUsername = `${baseUsername}${counter}`;
+      counter++;
+    }
+
     user = await User.create({
       googleId,
       email: email!,
+      username: uniqueUsername,
       name: name || email!.split("@")[0],
       avatar: picture || "",
       authProvider: "google",
     });
 
     const token = signToken(user._id.toString());
-    res.status(201).json({ token, user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar } });
+    res.status(201).json({ token, user: { _id: user._id, name: user.name, username: user.username, email: user.email, avatar: user.avatar } });
   } catch (error) {
     console.error("Google Auth Error:", error);
     res.status(500).json({ 

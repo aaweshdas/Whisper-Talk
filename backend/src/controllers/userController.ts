@@ -7,7 +7,7 @@ export async function getUsers(req: AuthRequest, res: Response, next: NextFuncti
     const userId = req.userId;
 
     const users = await User.find({ _id: { $ne: userId } })
-      .select("name email avatar")
+      .select("name username email avatar bio lastSeen")
       .limit(50);
 
     res.json(users);
@@ -27,9 +27,9 @@ export async function searchUsers(req: AuthRequest, res: Response, next: NextFun
     const regex = new RegExp(q, "i");
     const users = await User.find({
       _id: { $ne: userId },
-      $or: [{ name: regex }, { email: regex }],
+      $or: [{ name: regex }, { email: regex }, { username: regex }],
     })
-      .select("name email avatar")
+      .select("name username email avatar bio lastSeen")
       .limit(20);
 
     res.json(users);
@@ -42,13 +42,26 @@ export async function searchUsers(req: AuthRequest, res: Response, next: NextFun
 export async function updateUserProfile(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const userId = req.userId!;
-    const { name } = req.body;
+    const { name, username, bio } = req.body;
     const file = req.file;
 
     const updateData: any = {};
     if (name?.trim()) {
       updateData.name = name.trim();
     }
+    
+    if (username?.trim()) {
+      const existingUser = await User.findOne({ username: username.trim().toLowerCase(), _id: { $ne: userId } });
+      if (existingUser) {
+        return res.status(400).json({ message: "Username is already taken" });
+      }
+      updateData.username = username.trim().toLowerCase();
+    }
+    
+    if (bio !== undefined) { // Allow empty bio
+      updateData.bio = bio.trim();
+    }
+    
     if (file) {
       updateData.avatar = `/uploads/${file.filename}`;
     }

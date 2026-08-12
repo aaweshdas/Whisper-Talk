@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Edit2Icon, Trash2Icon, MoreHorizontalIcon, CheckCheckIcon, SmileIcon } from "lucide-react";
+import { Edit2Icon, Trash2Icon, MoreHorizontalIcon, CheckCheckIcon, CheckIcon, SmileIcon, ClockIcon } from "lucide-react";
 import { useEditMessage, useDeleteMessage, useReactToMessage } from "../hooks/useMessages";
 import { EditMessageModal } from "./EditMessageModal";
 import { DeleteMessageModal } from "./DeleteMessageModal";
@@ -8,7 +8,7 @@ import { ForwardMessageModal } from "./ForwardMessageModal";
 import { useSocketStore } from "../lib/socket";
 import { ReplyIcon, ForwardIcon } from "lucide-react";
 
-export function MessageBubble({ message, isMe, showAvatar, user, onReply }) {
+export function MessageBubble({ message, isMe, showAvatar, showName, user, onReply }) {
   const [isHovered, setIsHovered] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -44,31 +44,32 @@ export function MessageBubble({ message, isMe, showAvatar, user, onReply }) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => { setIsHovered(false); setShowOptions(false); }}
     >
-      <div className={`flex max-w-[75%] gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+      <div className={`flex max-w-[85%] gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
         
-        {/* Avatar */}
-        {showAvatar ? (
-          <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center text-slate-700 dark:text-slate-300 font-medium overflow-hidden mt-auto mb-1 border border-slate-300 dark:border-slate-600 shadow-sm">
-            {user?.avatar ? (
-              <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              user?.name?.[0]?.toUpperCase() || "U"
-            )}
-          </div>
-        ) : (
-          <div className="w-8 flex-shrink-0" />
+        {/* Avatar (Only for other users) */}
+        {!isMe && (
+          showAvatar ? (
+            <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center text-slate-700 dark:text-slate-300 font-medium overflow-hidden mt-auto mb-1 border border-slate-300 dark:border-slate-600 shadow-sm">
+              {user?.avatar ? (
+                <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                user?.name?.[0]?.toUpperCase() || "U"
+              )}
+            </div>
+          ) : (
+            <div className="w-8 flex-shrink-0" />
+          )
         )}
 
         {/* Message Content */}
-        <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-          <div className="flex items-center gap-2 mb-1 px-1">
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              {user?.name?.split(' ')[0] || "Unknown"}
-            </span>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500">
-              {format(new Date(message.createdAt), "h:mm a")}
-            </span>
-          </div>
+        <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} min-w-[120px]`}>
+          {showName && (
+            <div className="flex items-center gap-2 mb-1 px-1">
+              <span className="text-[11px] font-medium text-slate-300">
+                {user?.name || "Unknown"}
+              </span>
+            </div>
+          )}
 
           <div className="relative group/bubble flex items-center">
             
@@ -145,7 +146,7 @@ export function MessageBubble({ message, isMe, showAvatar, user, onReply }) {
 
             {/* Bubble */}
             <div 
-              className={`px-4 py-2.5 rounded-2xl shadow-sm text-[15px] leading-relaxed relative ${
+              className={`px-3 py-1.5 rounded-2xl shadow-sm text-[15px] leading-relaxed relative ${
                 message.deletedForEveryone
                   ? "bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 italic border border-slate-200 dark:border-slate-700"
                   : isMe
@@ -153,57 +154,77 @@ export function MessageBubble({ message, isMe, showAvatar, user, onReply }) {
                     : "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-bl-sm"
               }`}
             >
-              {message.replyTo && !message.deletedForEveryone && (
-                <div 
-                  className={`mb-2 pl-2 border-l-2 text-xs rounded p-1.5 opacity-90 ${
-                    isMe 
-                      ? "border-white/40 bg-white/10 text-white/90" 
-                      : "border-primary-500 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400"
-                  }`}
-                >
-                  <p className="font-semibold mb-0.5">{message.replyTo.sender?.name || "User"}</p>
-                  <p className="truncate max-w-[200px]">{message.replyTo.text}</p>
-                </div>
-              )}
-              {message.isForwarded && !message.deletedForEveryone && (
-                <div className="flex items-center gap-1 mb-1 opacity-70 text-[10px] font-medium uppercase tracking-wider">
-                  <ForwardIcon className="w-3 h-3" />
-                  Forwarded
-                </div>
-              )}
-              {message.attachment && !message.deletedForEveryone && (
-                <div className="mb-2">
-                  {message.attachment.type.startsWith("image/") ? (
-                    <img 
-                      src={`http://localhost:3001${message.attachment.url}`} 
-                      alt="attachment" 
-                      className="max-w-[200px] sm:max-w-[300px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => window.open(`http://localhost:3001${message.attachment.url}`, '_blank')}
-                    />
-                  ) : (
-                    <a 
-                      href={`http://localhost:3001${message.attachment.url}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2 p-2 rounded bg-slate-100/10 hover:bg-slate-100/20 transition-colors border border-slate-200/20"
-                    >
-                      <div className="w-8 h-8 flex items-center justify-center bg-slate-200/20 rounded">
-                        <span className="text-xs font-bold uppercase">{message.attachment.name.split('.').pop()}</span>
-                      </div>
-                      <span className="text-sm font-medium truncate max-w-[150px]">{message.attachment.name}</span>
-                    </a>
-                  )}
-                </div>
-              )}
-              {message.deletedForEveryone ? "This message was deleted" : message.text}
-              
-              {!message.deletedForEveryone && message.isEdited && (
-                <span className="text-[10px] opacity-70 ml-2 inline-block font-medium">(edited)</span>
-              )}
+              <div className="pr-16 pb-3 min-w-0 break-words">
+                {message.replyTo && !message.deletedForEveryone && (
+                  <div 
+                    className={`mb-2 pl-2 border-l-2 text-xs rounded p-1.5 opacity-90 ${
+                      isMe 
+                        ? "border-white/40 bg-white/10 text-white/90" 
+                        : "border-primary-500 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400"
+                    }`}
+                  >
+                    <p className="font-semibold mb-0.5">{message.replyTo.sender?.name || "User"}</p>
+                    <p className="truncate max-w-[200px]">{message.replyTo.text}</p>
+                  </div>
+                )}
+                {message.isForwarded && !message.deletedForEveryone && (
+                  <div className="flex items-center gap-1 mb-1 opacity-70 text-[10px] font-medium uppercase tracking-wider">
+                    <ForwardIcon className="w-3 h-3" />
+                    Forwarded
+                  </div>
+                )}
+                {message.attachment && !message.deletedForEveryone && (
+                  <div className="mb-2">
+                    {message.attachment.type.startsWith("image/") ? (
+                      <img 
+                        src={`http://localhost:3001${message.attachment.url}`} 
+                        alt="attachment" 
+                        className="max-w-[200px] sm:max-w-[300px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(`http://localhost:3001${message.attachment.url}`, '_blank')}
+                      />
+                    ) : (
+                      <a 
+                        href={`http://localhost:3001${message.attachment.url}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 p-2 rounded bg-slate-100/10 hover:bg-slate-100/20 transition-colors border border-slate-200/20"
+                      >
+                        <div className="w-8 h-8 flex items-center justify-center bg-slate-200/20 rounded">
+                          <span className="text-xs font-bold uppercase">{message.attachment.name.split('.').pop()}</span>
+                        </div>
+                        <span className="text-sm font-medium truncate max-w-[150px]">{message.attachment.name}</span>
+                      </a>
+                    )}
+                  </div>
+                )}
+                {message.deletedForEveryone ? "This message was deleted" : message.text}
+                
+                {!message.deletedForEveryone && message.isEdited && (
+                  <span className="text-[10px] opacity-70 ml-2 inline-block font-medium">(edited)</span>
+                )}
+              </div>
+
+              {/* Timestamp & Ticks (Inside bubble) */}
+              <div className="absolute bottom-1 right-2 flex items-center gap-1 text-[10px] opacity-75">
+                <span>{format(new Date(message.createdAt), "h:mm a")}</span>
+                {isMe && !message.deletedForEveryone && (
+                  <>
+                    {String(message._id).startsWith("temp-") ? (
+                      <ClockIcon className="w-3.5 h-3.5" />
+                    ) : message.readBy?.length > 0 ? (
+                      <CheckCheckIcon className="w-3.5 h-3.5 text-blue-200" />
+                    ) : message.deliveredTo?.length > 0 ? (
+                      <CheckCheckIcon className="w-3.5 h-3.5" />
+                    ) : (
+                      <CheckIcon className="w-3.5 h-3.5" />
+                    )}
+                  </>
+                )}
+              </div>
 
               {/* Reactions display */}
               {!message.deletedForEveryone && message.reactions?.length > 0 && (
-                <div className={`absolute -bottom-3 ${isMe ? "right-2" : "left-2"} flex gap-1`}>
+                <div className={`absolute -bottom-3 ${isMe ? "right-2" : "left-2"} flex gap-1 z-10`}>
                   {Object.entries(
                     message.reactions.reduce((acc, r) => {
                       acc[r.emoji] = (acc[r.emoji] || 0) + 1;
@@ -223,12 +244,6 @@ export function MessageBubble({ message, isMe, showAvatar, user, onReply }) {
               )}
             </div>
           </div>
-          
-          {isMe && !message.deletedForEveryone && (
-            <div className="flex items-center gap-1 mt-1 pr-1 opacity-70">
-              <CheckCheckIcon className={`w-3.5 h-3.5 ${message.readBy?.length > 0 ? "text-primary-500" : "text-slate-400"}`} />
-            </div>
-          )}
         </div>
       </div>
 
