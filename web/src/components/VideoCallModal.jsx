@@ -69,7 +69,16 @@ export function VideoCallModal() {
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
-      { urls: "stun:stun2.l.google.com:19302" },
+      {
+        urls: "turn:openrelay.metered.ca:80",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      }
     ],
   };
 
@@ -149,8 +158,16 @@ export function VideoCallModal() {
     peerConnectionRef.current = pc;
 
     pc.ontrack = (event) => {
-      if (event.streams && event.streams[0]) {
-        setRemoteStream(event.streams[0]);
+      if (event.track) {
+        setRemoteStream((prev) => {
+          const stream = prev || new MediaStream();
+          // Avoid adding the same track twice
+          if (!stream.getTracks().find(t => t.id === event.track.id)) {
+             stream.addTrack(event.track);
+          }
+          // Return a new MediaStream instance so React detects the state change
+          return new MediaStream(stream.getTracks());
+        });
       }
     };
 
@@ -366,9 +383,9 @@ export function VideoCallModal() {
             autoPlay
             playsInline
             className="absolute inset-0 w-full h-full object-cover"
-            style={{ display: remoteStream && !isVideoOff ? "block" : "none" }}
+            style={{ display: remoteStream ? "block" : "none" }}
           />
-          {(!remoteStream || isVideoOff) && (
+          {!remoteStream && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
               {remoteStream ? (
                 <div className="w-24 h-24 rounded-full bg-slate-800 flex items-center justify-center mb-6 border border-slate-700">
