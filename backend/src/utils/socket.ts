@@ -62,39 +62,66 @@ export function initializeSocket(httpServer: HttpServer) {
           const { chatId, senderId, text, replyTo } = data;
           if (!chatId || !senderId || !text?.trim()) return;
 
-          const chat = await Chat.findOne({ _id: chatId, participants: senderId });
+          const chat = await Chat.findOne({ _id: chatId, participants: senderId }).lean();
           if (!chat) return;
 
+          // FAST PATH: Fetch minimal sender info and broadcast immediately to eliminate perceived latency
+          const mongoose = require("mongoose");
+          const User = require("../models/User").User;
+          const sender = await User.findById(senderId).select("name email avatar").lean();
+          
+          const messageId = new mongoose.Types.ObjectId();
+          const now = new Date();
+          
+          // Construct the optimistic payload
+          const fastMsg = {
+            _id: messageId,
+            chat: chatId,
+            sender: sender,
+            text: text.trim(),
+            replyTo: replyTo ? { _id: replyTo } : null,
+            createdAt: now,
+            deletedForEveryone: false
+          };
+
+          // Broadcast immediately to ALL participants (including sender for cross-device sync)
+          chat.participants.forEach((p: any) => {
+            io.to(p.toString()).emit("new-message", fastMsg);
+          });
+
+          // SLOW PATH: Save to database asynchronously in the background
           const msg = await Message.create({
+            _id: messageId,
             chat: chatId,
             sender: senderId,
             text: text.trim(),
             replyTo: replyTo ? new Types.ObjectId(replyTo) : null,
-            readBy: [{ user: new Types.ObjectId(senderId), readAt: new Date() }],
-            deliveredTo: [{ user: new Types.ObjectId(senderId), deliveredAt: new Date() }] // Track delivery
+            readBy: [{ user: new Types.ObjectId(senderId), readAt: now }],
+            deliveredTo: [{ user: new Types.ObjectId(senderId), deliveredAt: now }],
+            createdAt: now,
           });
 
           // Increment unread for other participants
-          const others = chat.participants.filter((p) => p.toString() !== senderId);
-          for (const otherId of others) {
-            const idx = chat.unreadCounts.findIndex((u) => u.user.toString() === otherId.toString());
-            if (idx >= 0) {
-              chat.unreadCounts[idx].count += 1;
-            } else {
-              chat.unreadCounts.push({ user: otherId, count: 1 });
+          const others = chat.participants.filter((p: any) => p.toString() !== senderId);
+          await Chat.updateOne(
+            { _id: chatId },
+            {
+              $set: { lastMessage: messageId, lastMessageAt: now },
             }
+          );
+          
+          // Update unread counts individually
+          for (const otherId of others) {
+            await Chat.updateOne(
+              { _id: chatId, "unreadCounts.user": otherId },
+              { $inc: { "unreadCounts.$.count": 1 } }
+            );
+            // If they didn't have an unread count entry, push it
+            await Chat.updateOne(
+              { _id: chatId, "unreadCounts.user": { $ne: otherId } },
+              { $push: { unreadCounts: { user: otherId, count: 1 } } }
+            );
           }
-          chat.lastMessage = msg._id;
-          chat.lastMessageAt = new Date();
-          await chat.save();
-
-          await msg.populate("sender", "name email avatar");
-          if (msg.replyTo) await msg.populate("replyTo", "text sender");
-
-          // Send to ALL participants in their personal rooms
-          chat.participants.forEach((p) => {
-            io.to(p.toString()).emit("new-message", msg);
-          });
 
           // Update chats in sidebar for offline users
           for (const otherId of others) {

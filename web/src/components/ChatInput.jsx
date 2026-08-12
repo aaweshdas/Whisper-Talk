@@ -16,7 +16,7 @@ export function ChatInput({ chatId, replyingTo, onCancelReply }) {
 
   const sendMessage = useSendMessage(chatId);
   const sendAttachment = useSendAttachment();
-  const { setTyping } = useSocketStore();
+  const { setTyping, sendMessage: socketSendMessage } = useSocketStore();
   const { data: currentUser } = useCurrentUser();
 
   const handleTextChange = (e) => {
@@ -32,17 +32,11 @@ export function ChatInput({ chatId, replyingTo, onCancelReply }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!text.trim() || isSubmittingRef.current) return;
+    if (!text.trim() || isSubmittingRef.current || !currentUser) return;
     
-    isSubmittingRef.current = true;
-    sendMessage.mutate(
-      { text, replyTo: replyingTo?._id },
-      {
-        onSettled: () => {
-          isSubmittingRef.current = false;
-        },
-      }
-    );
+    // Use the extremely fast WebSocket connection instead of HTTP POST
+    socketSendMessage(chatId, text, currentUser, replyingTo);
+    
     setText("");
     setShowEmoji(false);
     if (onCancelReply) onCancelReply();
