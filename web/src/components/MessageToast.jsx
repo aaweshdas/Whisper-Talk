@@ -39,71 +39,124 @@ function MessageToast({ toast, onDismiss }) {
       style={{
         transform: visible && !leaving ? "translateY(0)" : "translateY(-110%)",
         opacity: visible && !leaving ? 1 : 0,
-        transition: "transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease",
+        transition: "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease",
         pointerEvents: "auto",
         cursor: "pointer",
+        position: "relative",
       }}
     >
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "12px",
-          padding: "14px 16px",
-          borderRadius: "20px",
-          background: "rgba(12, 12, 28, 0.92)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          border: "1px solid rgba(139, 92, 246, 0.35)",
-          boxShadow:
-            "0 4px 24px rgba(139,92,246,0.18), 0 8px 32px rgba(0,0,0,0.5)",
-          minWidth: "280px",
-          maxWidth: "380px",
+          gap: "16px",
+          padding: "16px 24px",
+          borderRadius: "8px",
+          background: "linear-gradient(135deg, #090918, #161040, #0a0b2e)",
+          border: "2px solid #5d42f5",
+          boxShadow: "0 0 25px rgba(93, 66, 245, 0.5), inset 0 0 20px rgba(0, 198, 255, 0.15)",
+          minWidth: "320px",
+          maxWidth: "420px",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        {/* Avatar */}
+        {/* Glow ambient background */}
+        <div style={{
+          position: "absolute",
+          top: "50%",
+          left: "20%",
+          width: "150%",
+          height: "150%",
+          background: "radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, transparent 60%)",
+          transform: "translate(-50%, -50%)",
+          pointerEvents: "none",
+        }} />
+
+        {/* Decorative Stars */}
+        <div style={{ position: "absolute", top: "20%", left: "10%", width: 2, height: 2, background: "#fff", boxShadow: "0 0 4px 2px #fff", borderRadius: "50%" }} />
+        <div style={{ position: "absolute", top: "75%", left: "45%", width: 2, height: 2, background: "#00f2fe", boxShadow: "0 0 6px 2px #00f2fe", borderRadius: "50%" }} />
+        <div style={{ position: "absolute", top: "30%", right: "25%", width: 1.5, height: 1.5, background: "#e100ff", boxShadow: "0 0 5px 2px #e100ff", borderRadius: "50%" }} />
+        <div style={{ position: "absolute", bottom: "15%", right: "8%", width: 4, height: 4, background: "#fff", boxShadow: "0 0 6px 2px #fff", clipPath: "polygon(50% 0%, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0% 50%, 40% 40%)" }} />
+        <div style={{ position: "absolute", top: "15%", right: "45%", width: 3, height: 3, background: "#fff", boxShadow: "0 0 5px 2px #fff", clipPath: "polygon(50% 0%, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0% 50%, 40% 40%)" }} />
+
+        {/* Planet Avatar */}
         <div
           style={{
-            width: 40,
-            height: 40,
+            position: "relative",
+            zIndex: 2,
+            width: 48,
+            height: 48,
             borderRadius: "50%",
-            background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
+            background: "radial-gradient(circle at 30% 30%, #4facfe, #00f2fe, #5d42f5, #240b36)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            fontSize: 16,
-            fontWeight: 700,
+            fontSize: 22,
+            fontWeight: 800,
             color: "#fff",
-            boxShadow: "0 0 12px rgba(124,58,237,0.4)",
+            boxShadow: "0 0 20px rgba(0, 242, 254, 0.6), inset -4px -4px 10px rgba(0,0,0,0.6)",
+            border: "1px solid rgba(255,255,255,0.4)"
           }}
         >
-          {initial}
+          <span style={{ zIndex: 3, textShadow: "0 0 8px rgba(255,255,255,0.8)" }}>{initial}</span>
+          
+          {/* Inner Ring */}
+          <div style={{
+            position: "absolute",
+            inset: "-5px",
+            borderRadius: "50%",
+            border: "2px solid transparent",
+            borderTopColor: "#00f2fe",
+            borderRightColor: "#00f2fe",
+            transform: "rotate(45deg) scale(1.2, 0.35)",
+            boxShadow: "0 0 12px #00f2fe",
+            pointerEvents: "none",
+            zIndex: 1
+          }} />
+          
+          {/* Outer Ring */}
+          <div style={{
+            position: "absolute",
+            inset: "-10px",
+            borderRadius: "50%",
+            border: "2px solid transparent",
+            borderBottomColor: "#e100ff",
+            borderLeftColor: "#e100ff",
+            transform: "rotate(25deg) scale(1.2, 0.3)",
+            boxShadow: "0 0 15px #e100ff",
+            pointerEvents: "none",
+            zIndex: 4
+          }} />
         </div>
 
         {/* Text */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 2 }}>
           <p
             style={{
               margin: 0,
-              fontWeight: 700,
-              fontSize: 13,
-              color: "#f1f5f9",
+              fontWeight: 800,
+              fontSize: 15,
+              color: "#fff",
+              textShadow: "0 0 10px rgba(255,255,255,0.5), 0 0 20px rgba(0, 242, 254, 0.4)",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
+              letterSpacing: "0.5px"
             }}
           >
             {toast.senderName || "Someone"}
           </p>
           <p
             style={{
-              margin: "3px 0 0",
-              fontSize: 12,
-              color: "rgba(241,245,249,0.55)",
+              margin: "5px 0 0",
+              fontSize: 13,
+              color: "#b8c6db",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
+              fontWeight: 500
             }}
           >
             {toast.text}
@@ -114,21 +167,33 @@ function MessageToast({ toast, onDismiss }) {
         <button
           onClick={(e) => { e.stopPropagation(); dismiss(); }}
           style={{
-            background: "rgba(255,255,255,0.07)",
-            border: "none",
+            position: "relative",
+            zIndex: 2,
+            background: "rgba(255,255,255,0.1)",
+            border: "1px solid rgba(255,255,255,0.2)",
             borderRadius: "50%",
-            width: 26,
-            height: 26,
+            width: 28,
+            height: 28,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            color: "rgba(241,245,249,0.5)",
-            fontSize: 14,
+            color: "#fff",
+            fontSize: 16,
             flexShrink: 0,
-            lineHeight: 1,
+            backdropFilter: "blur(4px)",
+            boxShadow: "0 0 10px rgba(255,255,255,0.1)",
+            transition: "all 0.2s ease"
           }}
           aria-label="Dismiss"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.25)";
+            e.currentTarget.style.boxShadow = "0 0 15px rgba(255,255,255,0.3)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+            e.currentTarget.style.boxShadow = "0 0 10px rgba(255,255,255,0.1)";
+          }}
         >
           ✕
         </button>
