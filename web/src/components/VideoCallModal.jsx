@@ -44,7 +44,15 @@ export function VideoCallModal() {
       node.srcObject = localStream;
     }
   }, [localStream]);
+
   const remoteVideoRef = useRef(null);
+  const attachRemoteVideo = useCallback((node) => {
+    remoteVideoRef.current = node;
+    if (node && remoteStream) {
+      node.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+  
   const peerConnectionRef = useRef(null);
   const isStartingRef = useRef(false);
   const pendingIceCandidatesRef = useRef([]);
@@ -354,7 +362,7 @@ export function VideoCallModal() {
       {isConnected && (
         <div className="w-full h-full relative bg-slate-950" onClick={resetControlsTimer}>
           <video
-            ref={remoteVideoRef}
+            ref={attachRemoteVideo}
             autoPlay
             playsInline
             className="absolute inset-0 w-full h-full object-cover"
