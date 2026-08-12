@@ -3,6 +3,7 @@ import type { Server as HttpServer } from "http";
 import { Message } from "../models/Message";
 import { Chat } from "../models/Chat";
 import { Types } from "mongoose";
+import { User } from "../models/User";
 
 // ── In-memory online user map ─────────────────────────────────────────────────
 let _io: Server | null = null;
@@ -66,11 +67,9 @@ export function initializeSocket(httpServer: HttpServer) {
           if (!chat) return;
 
           // FAST PATH: Fetch minimal sender info and broadcast immediately to eliminate perceived latency
-          const mongoose = require("mongoose");
-          const User = require("../models/User").User;
           const sender = await User.findById(senderId).select("name email avatar").lean();
           
-          const messageId = new mongoose.Types.ObjectId();
+          const messageId = new Types.ObjectId();
           const now = new Date();
           
           // Construct the optimistic payload
@@ -95,7 +94,7 @@ export function initializeSocket(httpServer: HttpServer) {
             chat: chatId,
             sender: senderId,
             text: text.trim(),
-            replyTo: replyTo ? new Types.ObjectId(replyTo) : null,
+            replyTo: replyTo ? new Types.ObjectId(replyTo) : undefined,
             readBy: [{ user: new Types.ObjectId(senderId), readAt: now }],
             deliveredTo: [{ user: new Types.ObjectId(senderId), deliveredAt: now }],
             createdAt: now,
@@ -276,7 +275,6 @@ export function initializeSocket(httpServer: HttpServer) {
           if (socketIds.size === 0) {
             onlineUsers.delete(uid);
             try {
-              const User = require("../models/User").User;
               await User.findByIdAndUpdate(uid, { lastSeen: new Date() });
             } catch (err) {
               console.error("[socket] update lastSeen error:", err);
