@@ -6,7 +6,7 @@ import { Types } from "mongoose";
 
 // ── In-memory online user map ─────────────────────────────────────────────────
 let _io: Server | null = null;
-const onlineUsers = new Map<string, string>(); // userId → socketId
+const onlineUsers = new Map<string, Set<string>>(); // userId → Set of socketIds
 
 export function getIO(): Server {
   if (!_io) throw new Error("Socket.io not initialized");
@@ -37,7 +37,10 @@ export function initializeSocket(httpServer: HttpServer) {
   io.on("connection", (socket: Socket) => {
     // ── JOIN ─────────────────────────────────────────────────────────────────
     socket.on("join", (userId: string) => {
-      onlineUsers.set(userId, socket.id);
+      if (!onlineUsers.has(userId)) {
+        onlineUsers.set(userId, new Set());
+      }
+      onlineUsers.get(userId)!.add(socket.id);
       socket.join(userId); // personal room
       io.emit("online-users", Array.from(onlineUsers.keys()));
     });
@@ -239,14 +242,18 @@ export function initializeSocket(httpServer: HttpServer) {
 
     // ── DISCONNECT ────────────────────────────────────────────────────────────
     socket.on("disconnect", async () => {
-      for (const [uid, sid] of onlineUsers.entries()) {
-        if (sid === socket.id) {
-          onlineUsers.delete(uid);
-          try {
-            const User = require("../models/User").User;
-            await User.findByIdAndUpdate(uid, { lastSeen: new Date() });
-          } catch (err) {
-            console.error("[socket] update lastSeen error:", err);
+      for (const [uid, socketIds] of onlineUsers.entries()) {
+        if (socketIds.has(socket.id)) {
+          socketIds.delete(socket.id);
+          
+          if (socketIds.size === 0) {
+            onlineUsers.delete(uid);
+            try {
+              const User = require("../models/User").User;
+              await User.findByIdAndUpdate(uid, { lastSeen: new Date() });
+            } catch (err) {
+              console.error("[socket] update lastSeen error:", err);
+            }
           }
           break;
         }

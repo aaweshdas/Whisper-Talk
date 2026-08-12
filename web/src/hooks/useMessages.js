@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/axios";
+import { useCurrentUser } from "./useCurrentUser";
 
 // Token is auto-attached by the axios interceptor in lib/axios.js
 
@@ -17,20 +18,58 @@ export const useMessages = (chatId) =>
 // ── Send a message ────────────────────────────────────────────────────────────────
 export const useSendMessage = (chatId) => {
   const queryClient = useQueryClient();
+  const { data: currentUser } = useCurrentUser();
 
   return useMutation({
     mutationFn: async ({ text, replyTo }) => {
       const res = await api.post(`/messages/${chatId}`, { text, replyTo });
       return res.data;
     },
-    onSuccess: (newMessage) => {
-      // Optimistically append to messages cache, checking for duplicates
+    onMutate: async ({ text, replyTo }) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ["messages", chatId] });
+
+      // Snapshot the previous value
+      const previousMessages = queryClient.getQueryData(["messages", chatId]);
+
+      // Optimistically update to the new value
+      const tempId = `temp-${Date.now()}`;
+      const optimisticMessage = {
+        _id: tempId,
+        chat: chatId,
+        sender: {
+          _id: currentUser?._id || "me",
+          name: currentUser?.name || "You",
+          email: currentUser?.email || "",
+          avatar: currentUser?.avatar || "",
+        },
+        text,
+        replyTo: replyTo ? { _id: replyTo, text: "Replying..." } : null,
+        reactions: [],
+        readBy: [],
+        createdAt: new Date().toISOString(),
+      };
+
+      queryClient.setQueryData(["messages", chatId], (old) => {
+        if (!old) return [optimisticMessage];
+        return [...old, optimisticMessage];
+      });
+
+      return { previousMessages, tempId };
+    },
+    onError: (err, newTodo, context) => {
+      // Rollback on error
+      if (context?.previousMessages) {
+        queryClient.setQueryData(["messages", chatId], context.previousMessages);
+      }
+    },
+    onSuccess: (newMessage, variables, context) => {
+      // Replace optimistic message with the real one from the server
       queryClient.setQueryData(["messages", chatId], (old) => {
         if (!old) return [newMessage];
-        const exists = old.some((m) => m._id === newMessage._id);
-        return exists ? old : [...old, newMessage];
+        // Replace the temp message
+        return old.map((m) => m._id === context?.tempId ? newMessage : m);
       });
-      // Refresh chat list so lastMessage updates
       queryClient.invalidateQueries({ queryKey: ["chats"] });
     },
   });
