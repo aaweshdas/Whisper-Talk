@@ -15,12 +15,20 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:8081", // expo mobile
   "http://localhost:5173", // vite web devs
-  process.env.FRONTEND_URL!, // production
+  "https://whisper-talk-five.vercel.app", // production Vercel frontend
+  ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(",").map(u => u.trim()) : []),
 ].filter(Boolean);
 
 app.use(
   cors({
-    origin: process.env.NODE_ENV === "development" ? true : allowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
     credentials: true,
   })
 );
