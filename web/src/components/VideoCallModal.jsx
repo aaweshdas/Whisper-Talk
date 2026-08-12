@@ -38,6 +38,8 @@ export function VideoCallModal() {
   const [showControls, setShowControls] = useState(true);
 
   const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  
   const attachLocalVideo = useCallback((node) => {
     localVideoRef.current = node;
     if (node && localStream) {
@@ -45,14 +47,6 @@ export function VideoCallModal() {
     }
   }, [localStream]);
 
-  const remoteVideoRef = useRef(null);
-  const attachRemoteVideo = useCallback((node) => {
-    remoteVideoRef.current = node;
-    if (node && remoteStream) {
-      node.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
-  
   const peerConnectionRef = useRef(null);
   const isStartingRef = useRef(false);
   const pendingIceCandidatesRef = useRef([]);
@@ -158,16 +152,10 @@ export function VideoCallModal() {
     peerConnectionRef.current = pc;
 
     pc.ontrack = (event) => {
-      if (event.track) {
-        setRemoteStream((prev) => {
-          const stream = prev || new MediaStream();
-          // Avoid adding the same track twice
-          if (!stream.getTracks().find(t => t.id === event.track.id)) {
-             stream.addTrack(event.track);
-          }
-          // Return a new MediaStream instance so React detects the state change
-          return new MediaStream(stream.getTracks());
-        });
+      if (event.streams && event.streams[0]) {
+        setRemoteStream(event.streams[0]);
+      } else if (event.track) {
+        setRemoteStream(new MediaStream([event.track]));
       }
     };
 
@@ -379,7 +367,7 @@ export function VideoCallModal() {
       {isConnected && (
         <div className="w-full h-full relative bg-slate-950" onClick={resetControlsTimer}>
           <video
-            ref={attachRemoteVideo}
+            ref={remoteVideoRef}
             autoPlay
             playsInline
             className="absolute inset-0 w-full h-full object-cover"
