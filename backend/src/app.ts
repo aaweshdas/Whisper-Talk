@@ -25,6 +25,12 @@ app.use(
   })
 );
 
+// Allow Google Sign-In popup to communicate with parent window
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  next();
+});
+
 app.use(express.json()); // parses incoming JSON request bodies and makes them available as req.body in your route handlers
 app.use(clerkMiddleware());
 
@@ -39,6 +45,8 @@ app.use("/api/users", userRoutes);
 
 // error handlers must come after all the routes and other middlewares so they can catch errors passed with next(err) or thrown inside async handlers.
 app.use(errorHandler);
+
+app.use("/uploads", express.static(path.join(__dirname, "../../uploads")));
 
 // serve frontend in production
 if (process.env.NODE_ENV === "production") {

@@ -3,6 +3,7 @@ import type { AuthRequest } from "../middleware/auth";
 import { Message } from "../models/Message";
 import { Chat } from "../models/Chat";
 import { Types } from "mongoose";
+import { getIO } from "../utils/socket";
 
 // ── GET messages for a chat ───────────────────────────────────────────────────
 export async function getMessages(req: AuthRequest, res: Response, next: NextFunction) {
@@ -18,10 +19,102 @@ export async function getMessages(req: AuthRequest, res: Response, next: NextFun
       deletedBy: { $ne: userId }, // hide "deleted for me" messages
     })
       .populate("sender", "name email avatar")
-      .populate("replyTo", "text sender")
+      .populate("replyTo", "text sender attachment")
       .sort({ createdAt: 1 });
 
     res.json(messages);
+  } catch (error) {
+    res.status(500);
+    next(error);
+  }
+}
+
+// ── Send a message ────────────────────────────────────────────────────────────────
+export async function sendMessage(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const userId = req.userId!;
+    const { chatId } = req.params;
+    const { text, replyTo } = req.body;
+
+    if (!text?.trim()) return res.status(400).json({ message: "Message text is required" });
+
+    const chat = await Chat.findOne({ _id: chatId, participants: userId });
+    if (!chat) return res.status(404).json({ message: "Chat not found" });
+
+    const message = await Message.create({
+      chat: chatId,
+      sender: userId,
+      text: text.trim(),
+      ...(replyTo ? { replyTo } : {}),
+    });
+
+    const populated = await message.populate("sender", "name email avatar");
+
+    // Update chat's lastMessage and lastMessageAt
+    await Chat.findByIdAndUpdate(chatId, {
+      lastMessage: message._id,
+      lastMessageAt: message.createdAt,
+    });
+
+    // Emit to all participants via Socket.io
+    try {
+      const io = getIO();
+      chat.participants.forEach((participantId) => {
+        io.to(participantId.toString()).emit("newMessage", populated);
+      });
+    } catch (_) {
+      // socket not critical — message is already saved
+    }
+
+    res.status(201).json(populated);
+  } catch (error) {
+    res.status(500);
+    next(error);
+  }
+}
+
+// ── Send a message with attachment ────────────────────────────────────────────
+export async function sendAttachment(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const userId = req.userId!;
+    const { chatId } = req.params;
+    const { text, replyTo } = req.body;
+    const file = req.file;
+
+    if (!file) return res.status(400).json({ message: "Attachment file is required" });
+
+    const chat = await Chat.findOne({ _id: chatId, participants: userId });
+    if (!chat) return res.status(404).json({ message: "Chat not found" });
+
+    const attachmentUrl = `/uploads/${file.filename}`;
+
+    const message = await Message.create({
+      chat: chatId,
+      sender: userId,
+      text: text?.trim() || "",
+      attachment: {
+        url: attachmentUrl,
+        type: file.mimetype,
+        name: file.originalname,
+      },
+      ...(replyTo ? { replyTo } : {}),
+    });
+
+    const populated = await message.populate("sender", "name email avatar");
+
+    await Chat.findByIdAndUpdate(chatId, {
+      lastMessage: message._id,
+      lastMessageAt: message.createdAt,
+    });
+
+    try {
+      const io = getIO();
+      chat.participants.forEach((participantId) => {
+        io.to(participantId.toString()).emit("newMessage", populated);
+      });
+    } catch (_) {}
+
+    res.status(201).json(populated);
   } catch (error) {
     res.status(500);
     next(error);
@@ -199,6 +292,7 @@ export async function forwardMessage(req: AuthRequest, res: Response, next: Next
       chat: targetChatId,
       sender: userId,
       text: original.text,
+      attachment: original.attachment,
       isForwarded: true,
     });
 

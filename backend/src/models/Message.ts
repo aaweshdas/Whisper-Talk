@@ -15,6 +15,11 @@ export interface IMessage extends Document {
   sender: mongoose.Types.ObjectId;
   text: string;
   replyTo?: mongoose.Types.ObjectId;
+  attachment?: {
+    url: string;
+    type: string;
+    name: string;
+  };
   reactions: IReaction[];
   readBy: IReadReceipt[];
   deletedForEveryone: boolean;
@@ -45,8 +50,13 @@ const MessageSchema = new Schema<IMessage>(
   {
     chat: { type: Schema.Types.ObjectId, ref: "Chat", required: true },
     sender: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    text: { type: String, required: true, trim: true },
+    text: { type: String, required: false, trim: true },
     replyTo: { type: Schema.Types.ObjectId, ref: "Message", default: null },
+    attachment: {
+      url: { type: String },
+      type: { type: String },
+      name: { type: String },
+    },
     reactions: { type: [ReactionSchema], default: [] },
     readBy: { type: [ReadReceiptSchema], default: [] },
     deletedForEveryone: { type: Boolean, default: false },

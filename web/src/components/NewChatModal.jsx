@@ -1,180 +1,102 @@
 import { useState } from "react";
-import { XIcon, SearchIcon, UsersIcon } from "lucide-react";
-import { useSocketStore } from "../lib/socket";
-import { useUsers } from "../hooks/useUsers";
+import { useQuery } from "@tanstack/react-query";
+import { MessageSquarePlusIcon, XIcon, SearchIcon, Loader2Icon } from "lucide-react";
+import api from "../lib/axios";
+import { useChats } from "../hooks/useChats";
 
-export function NewChatModal({ onStartChat, isPending, isOpen, onClose }) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const { onlineUsers } = useSocketStore();
-  const { data: allUsers = [] } = useUsers();
-  const isOnline = (id) => onlineUsers.has(id);
+export function NewChatModal({ onClose, onSelect }) {
+  const [search, setSearch] = useState("");
+  const { data: chats, refetch: refetchChats } = useChats();
 
-  const handleStartChat = (participantId) => {
-    onStartChat(participantId);
-    setSearchQuery("");
-    onClose();
-  };
-
-  const searchResults = allUsers.filter((u) => {
-    if (!searchQuery.trim()) return true; // Show all by default
-    const query = searchQuery.toLowerCase();
-    return (
-      u.name?.toLowerCase().includes(query) ||
-      u.email?.toLowerCase().includes(query)
-    );
+  const { data: users, isLoading } = useQuery({
+    queryKey: ["users", search],
+    queryFn: async () => {
+      if (!search) return [];
+      const res = await api.get(`/users/search?q=${search}`);
+      return res.data;
+    },
+    enabled: search.length > 0,
   });
 
-  if (!isOpen) return null;
+  const handleCreateChat = async (userId) => {
+    try {
+      const res = await api.post("/chats", { participantId: userId });
+      await refetchChats();
+      onSelect(res.data._id);
+    } catch (err) {
+      console.error("Failed to create chat", err);
+    }
+  };
 
   return (
-    <div className="whisper-modal-backdrop" onClick={onClose}>
-      <div
-        className="whisper-modal glass-panel"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-content max-w-md h-[500px] flex flex-col">
+        
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-6 py-5"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
-        >
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{
-                background: "rgba(139,92,246,0.15)",
-                border: "1px solid rgba(139,92,246,0.25)",
-              }}
-            >
-              <UsersIcon className="w-4 h-4" style={{ color: "#a78bfa" }} />
+            <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center">
+              <MessageSquarePlusIcon className="w-4 h-4" />
             </div>
-            <h3 className="font-semibold" style={{ color: "#f1f5f9" }}>
-              New Conversation
-            </h3>
+            <h2 className="font-semibold text-slate-900 dark:text-white">New Conversation</h2>
           </div>
-          <button
-            onClick={() => {
-              setSearchQuery("");
-              onClose();
-            }}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-            style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.07)",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-            }}
+          <button 
+            onClick={onClose} 
+            className="w-8 h-8 rounded flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
           >
-            <XIcon className="w-4 h-4" style={{ color: "rgba(241,245,249,0.5)" }} />
+            <XIcon className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Search */}
-        <div className="px-6 py-4">
+        {/* Search Input */}
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <div className="relative">
-            <SearchIcon
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-              style={{ color: "rgba(241,245,249,0.3)" }}
-            />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name or email..."
-              className="whisper-input"
-              style={{ paddingLeft: "2.5rem" }}
+              placeholder="Search users by name or email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input-standard pl-9"
               autoFocus
             />
           </div>
         </div>
 
-        {/* Results */}
-        <div
-          className="px-3 pb-4 overflow-y-auto"
-          style={{ maxHeight: "320px" }}
-        >
-          {searchResults.length === 0 ? (
-            <div
-              className="flex flex-col items-center justify-center py-12 text-center"
-            >
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
-                style={{
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                }}
-              >
-                <SearchIcon
-                  className="w-5 h-5"
-                  style={{ color: "rgba(241,245,249,0.2)" }}
-                />
-              </div>
-              <p className="text-sm" style={{ color: "rgba(241,245,249,0.4)" }}>
-                No users found
-              </p>
+        {/* Results List */}
+        <div className="flex-1 overflow-y-auto p-2">
+          {!search ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 p-6 text-center">
+              <SearchIcon className="w-8 h-8 mb-3 opacity-20" />
+              <p className="text-sm">Search for colleagues to start a new chat.</p>
+            </div>
+          ) : isLoading ? (
+            <div className="h-full flex items-center justify-center">
+              <Loader2Icon className="w-6 h-6 text-primary-500 animate-spin" />
+            </div>
+          ) : users?.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 p-6 text-center">
+              <p className="text-sm">No users found matching "{search}".</p>
             </div>
           ) : (
             <div className="space-y-1">
-              {searchResults.map((u) => (
+              {users?.map((user) => (
                 <button
-                  key={u._id}
-                  onClick={() => handleStartChat(u._id)}
-                  disabled={isPending}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left"
-                  style={{ cursor: isPending ? "not-allowed" : "pointer", border: "1px solid transparent" }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(139,92,246,0.1)";
-                    e.currentTarget.style.border = "1px solid rgba(139,92,246,0.2)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.border = "1px solid transparent";
-                  }}
+                  key={user._id}
+                  onClick={() => handleCreateChat(user._id)}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left"
                 >
-                  <div className="relative flex-shrink-0">
-                    <img
-                      src={u.avatar}
-                      alt={u.name}
-                      className="w-10 h-10 rounded-full object-cover"
-                      style={{ border: "2px solid rgba(139,92,246,0.2)" }}
-                    />
-                    {isOnline(u._id) && (
-                      <span
-                        className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 online-dot"
-                        style={{ background: "#10b981", borderColor: "#06060c" }}
-                      />
+                  <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-medium overflow-hidden shrink-0 border border-slate-300 dark:border-slate-600 shadow-sm">
+                    {user.avatar ? (
+                      <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      user.name[0].toUpperCase()
                     )}
                   </div>
-                  <div className="flex-1 min-w-0 text-left">
-                    <p
-                      className="font-medium text-sm truncate"
-                      style={{ color: "#f1f5f9" }}
-                    >
-                      {u.name}
-                    </p>
-                    <p
-                      className="text-xs truncate mt-0.5"
-                      style={{ color: "rgba(241,245,249,0.4)" }}
-                    >
-                      {u.email}
-                    </p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{user.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
                   </div>
-                  {isOnline(u._id) && (
-                    <span
-                      className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
-                      style={{
-                        background: "rgba(16,185,129,0.12)",
-                        color: "#10b981",
-                        border: "1px solid rgba(16,185,129,0.2)",
-                      }}
-                    >
-                      Online
-                    </span>
-                  )}
                 </button>
               ))}
             </div>

@@ -19,39 +19,34 @@ export function EditMessageModal({ message, onConfirm, onClose }) {
   };
 
   return (
-    <div className="whisper-modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div
-        className="whisper-modal glass-panel px-6 py-5"
-        style={{ maxWidth: "440px" }}
-      >
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-content max-w-md">
+        
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{
-                background: "rgba(139,92,246,0.15)",
-                border: "1px solid rgba(139,92,246,0.25)",
-              }}
-            >
-              <PencilIcon className="w-4 h-4" style={{ color: "#a78bfa" }} />
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm">
+              <PencilIcon className="w-4 h-4" />
             </div>
-            <p className="font-semibold text-sm" style={{ color: "#f1f5f9" }}>
+            <p className="font-semibold text-sm text-slate-900 dark:text-white">
               Edit Message
             </p>
           </div>
-          <button onClick={onClose}>
-            <XIcon className="w-4 h-4" style={{ color: "rgba(241,245,249,0.4)" }} />
+          <button 
+            onClick={onClose} 
+            className="w-8 h-8 rounded flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+          >
+            <XIcon className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form onSubmit={handleSubmit} className="p-6">
           <textarea
             ref={inputRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={3}
-            className="whisper-input resize-none"
+            className="input-standard resize-none mb-6"
             style={{ lineHeight: "1.6" }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -60,24 +55,12 @@ export function EditMessageModal({ message, onConfirm, onClose }) {
               }
             }}
           />
-          <div className="flex gap-2 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-sm transition-all"
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "rgba(241,245,249,0.6)",
-              }}
-            >
+          <div className="flex gap-3 justify-end">
+            <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
-            <button
-              type="submit"
-              className="gradient-btn px-4 py-2 rounded-xl text-sm text-white font-medium"
-            >
-              Save
+            <button type="submit" className="btn-primary">
+              Save Changes
             </button>
           </div>
         </form>

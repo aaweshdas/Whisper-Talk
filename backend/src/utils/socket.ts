@@ -5,7 +5,13 @@ import { Chat } from "../models/Chat";
 import { Types } from "mongoose";
 
 // ── In-memory online user map ─────────────────────────────────────────────────
+let _io: Server | null = null;
 const onlineUsers = new Map<string, string>(); // userId → socketId
+
+export function getIO(): Server {
+  if (!_io) throw new Error("Socket.io not initialized");
+  return _io;
+}
 
 export function initializeSocket(httpServer: HttpServer) {
   const io = new Server(httpServer, {
@@ -198,5 +204,6 @@ export function initializeSocket(httpServer: HttpServer) {
     });
   });
 
+  _io = io;
   return io;
 }

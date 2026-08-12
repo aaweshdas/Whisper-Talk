@@ -111,6 +111,11 @@ export const useSocketStore = create((set, get) => ({
       // Suppress if the user is currently viewing this exact conversation
       if (get().activeChatId === message.chat) return;
 
+      // Check if chat is muted
+      const chats = queryClient.getQueryData(["chats"]);
+      const chat = chats?.find((c) => c._id === message.chat);
+      if (chat?.isMuted) return;
+
       const senderName =
         typeof message.sender === "object"
           ? message.sender?.name ?? message.sender?.username ?? ""

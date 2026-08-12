@@ -14,6 +14,27 @@ export const useMessages = (chatId) =>
     enabled: !!chatId,
   });
 
+// ── Send a message ────────────────────────────────────────────────────────────────
+export const useSendMessage = (chatId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ text, replyTo }) => {
+      const res = await api.post(`/messages/${chatId}`, { text, replyTo });
+      return res.data;
+    },
+    onSuccess: (newMessage) => {
+      // Optimistically append to messages cache
+      queryClient.setQueryData(["messages", chatId], (old) =>
+        old ? [...old, newMessage] : [newMessage]
+      );
+      // Refresh chat list so lastMessage updates
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+    },
+  });
+};
+
+
 // ── Mark as read ──────────────────────────────────────────────────────────────
 export const useMarkAsRead = () => {
   const queryClient = useQueryClient();
@@ -98,3 +119,13 @@ export const useSearchMessages = (chatId) =>
       return res.data;
     },
   });
+
+// ── Forward a message ─────────────────────────────────────────────────────────
+export const useForwardMessage = () => {
+  return useMutation({
+    mutationFn: async ({ messageId, targetChatId }) => {
+      const res = await api.post(`/messages/${messageId}/forward`, { targetChatId });
+      return res.data;
+    }
+  });
+};

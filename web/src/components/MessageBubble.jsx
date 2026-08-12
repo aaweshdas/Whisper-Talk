@@ -1,369 +1,246 @@
-import { useState, useRef, useEffect } from "react";
-import {
-  SmileIcon,
-  ReplyIcon,
-  PencilIcon,
-  TrashIcon,
-  CheckIcon,
-  CheckCheckIcon,
-  ForwardIcon,
-} from "lucide-react";
-import { formatTime } from "../lib/utils";
+import { useState } from "react";
+import { format } from "date-fns";
+import { Edit2Icon, Trash2Icon, MoreHorizontalIcon, CheckCheckIcon, SmileIcon } from "lucide-react";
+import { useEditMessage, useDeleteMessage, useReactToMessage } from "../hooks/useMessages";
+import { EditMessageModal } from "./EditMessageModal";
+import { DeleteMessageModal } from "./DeleteMessageModal";
+import { ForwardMessageModal } from "./ForwardMessageModal";
+import { useSocketStore } from "../lib/socket";
+import { ReplyIcon, ForwardIcon } from "lucide-react";
 
-const QUICK_EMOJIS = ["❤️", "😂", "😮", "😢", "😡", "👍"];
+export function MessageBubble({ message, isMe, showAvatar, user, onReply }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isForwarding, setIsForwarding] = useState(false);
+  
+  const [showReactions, setShowReactions] = useState(false);
+  
+  const editMessage = useEditMessage();
+  const deleteMessage = useDeleteMessage();
+  const reactMessage = useReactToMessage();
+  const emitDeleteMessage = useSocketStore((state) => state.emitDeleteMessage);
 
-export function MessageBubble({
-  message,
-  currentUser,
-  onReply,
-  onEdit,
-  onDelete,
-  onReact,
-}) {
-  const isMe = message.sender?._id === currentUser?._id;
-  const isDeleted = message.deletedForEveryone;
-
-  const [showMenu, setShowMenu] = useState(false);
-  const [showEmojiBar, setShowEmojiBar] = useState(false);
-  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
-  const menuRef = useRef(null);
-  const bubbleRef = useRef(null);
-
-  // Close menu on outside click
-  useEffect(() => {
-    if (!showMenu && !showEmojiBar) return;
-    const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setShowMenu(false);
-        setShowEmojiBar(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showMenu, showEmojiBar]);
-
-  const handleContextMenu = (e) => {
-    e.preventDefault();
-    setMenuPos({ x: e.clientX, y: e.clientY });
-    setShowMenu(true);
+  const handleReact = (emoji) => {
+    reactMessage.mutate({ chatId: message.chat, messageId: message._id, emoji });
+    setShowReactions(false);
   };
 
-  // Reaction summary: group by emoji
-  const reactionGroups = (message.reactions || []).reduce((acc, r) => {
-    acc[r.emoji] = (acc[r.emoji] || 0) + 1;
-    return acc;
-  }, {});
-  const myReaction = (message.reactions || []).find(
-    (r) => r.userId === currentUser?._id || r.userId?._id === currentUser?._id
-  )?.emoji;
-
-  // Read receipts: show double-check if any OTHER user has read
-  const isRead = (message.readBy || []).some(
-    (r) => (r.user?._id || r.user) !== currentUser?._id
-  );
-
-  return (
-    <div
-      className={`group flex items-end gap-2.5 animate-fade-in-up ${
-        isMe ? "flex-row-reverse" : "flex-row"
-      }`}
-      onContextMenu={handleContextMenu}
-    >
-      {/* Avatar */}
-      {!isMe && (
-        <img
-          src={message.sender?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(message.sender?.name || "U")}&background=7c3aed&color=fff`}
-          alt={message.sender?.name}
-          className="w-7 h-7 rounded-full object-cover flex-shrink-0 mb-5"
-          style={{ border: "1.5px solid rgba(139,92,246,0.25)" }}
-        />
-      )}
-
-      <div className="flex flex-col max-w-sm relative" ref={bubbleRef}>
-        {/* Reply reference */}
-        {message.replyTo && !isDeleted && (
-          <div
-            className="mb-1 px-3 py-1.5 rounded-xl text-xs truncate"
-            style={{
-              background: "rgba(139,92,246,0.12)",
-              border: "1px solid rgba(139,92,246,0.2)",
-              color: "rgba(167,139,250,0.9)",
-              maxWidth: "100%",
-            }}
-          >
-            <span style={{ color: "rgba(167,139,250,0.6)", fontSize: "10px" }}>
-              ↩ Replying to
-            </span>
-            <p className="truncate mt-0.5">{message.replyTo.text}</p>
-          </div>
-        )}
-
-        {/* Forward badge */}
-        {message.isForwarded && !isDeleted && (
-          <div className="flex items-center gap-1 mb-1" style={{ opacity: 0.5 }}>
-            <ForwardIcon className="w-3 h-3" style={{ color: "#a78bfa" }} />
-            <span className="text-[10px]" style={{ color: "#a78bfa" }}>
-              Forwarded
-            </span>
-          </div>
-        )}
-
-        {/* Bubble */}
-        <div
-          className="px-4 py-2.5 relative"
-          style={
-            isDeleted
-              ? {
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px dashed rgba(255,255,255,0.12)",
-                  borderRadius: "18px",
-                  opacity: 0.6,
-                }
-              : isMe
-              ? {
-                  background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
-                  border: "1px solid rgba(139,92,246,0.35)",
-                  boxShadow: "0 4px 16px rgba(124,58,237,0.2)",
-                  borderRadius: "18px 18px 4px 18px",
-                }
-              : {
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  backdropFilter: "blur(10px)",
-                  WebkitBackdropFilter: "blur(10px)",
-                  borderRadius: "18px 18px 18px 4px",
-                }
-          }
-        >
-          {isDeleted ? (
-            <p
-              className="text-sm italic"
-              style={{ color: "rgba(241,245,249,0.35)" }}
-            >
-              This message was deleted
-            </p>
-          ) : (
-            <p
-              className="text-sm leading-relaxed whitespace-pre-wrap break-words"
-              style={{ color: isMe ? "#fff" : "#e2e8f0" }}
-            >
-              {message.text}
-            </p>
-          )}
-
-          {/* Time + edited + read */}
-          <div
-            className="flex items-center justify-end gap-1.5 mt-1.5"
-            style={{ color: isMe ? "rgba(255,255,255,0.5)" : "rgba(241,245,249,0.3)" }}
-          >
-            {message.editedAt && !isDeleted && (
-              <span className="text-[10px] italic">edited</span>
-            )}
-            <span className="text-[10px]">{formatTime(message.createdAt)}</span>
-            {isMe && !isDeleted && (
-              <span className="ml-0.5">
-                {isRead ? (
-                  <CheckCheckIcon className="w-3 h-3 text-violet-400" />
-                ) : (
-                  <CheckIcon className="w-3 h-3" style={{ color: "rgba(255,255,255,0.4)" }} />
-                )}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Reaction bar */}
-        {Object.keys(reactionGroups).length > 0 && (
-          <div
-            className={`flex items-center gap-1 mt-1 flex-wrap ${
-              isMe ? "justify-end" : "justify-start"
-            }`}
-          >
-            {Object.entries(reactionGroups).map(([emoji, count]) => (
-              <button
-                key={emoji}
-                onClick={() => !isDeleted && onReact?.(message._id, emoji)}
-                className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 transition-all"
-                style={{
-                  background:
-                    myReaction === emoji
-                      ? "rgba(139,92,246,0.25)"
-                      : "rgba(255,255,255,0.06)",
-                  border:
-                    myReaction === emoji
-                      ? "1px solid rgba(139,92,246,0.4)"
-                      : "1px solid rgba(255,255,255,0.1)",
-                }}
-              >
-                {emoji}
-                {count > 1 && (
-                  <span style={{ color: "rgba(241,245,249,0.6)" }}>{count}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Hover action bar */}
-      {!isDeleted && (
-        <div
-          className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mb-6"
-          style={{ flexShrink: 0 }}
-        >
-          <button
-            onClick={() => setShowEmojiBar(!showEmojiBar)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-            title="React"
-          >
-            <SmileIcon className="w-3.5 h-3.5" style={{ color: "rgba(167,139,250,0.8)" }} />
-          </button>
-          <button
-            onClick={() => onReply?.(message)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-            title="Reply"
-          >
-            <ReplyIcon className="w-3.5 h-3.5" style={{ color: "rgba(167,139,250,0.8)" }} />
-          </button>
-          {isMe && (
-            <>
-              <button
-                onClick={() => onEdit?.(message)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-                style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-                title="Edit"
-              >
-                <PencilIcon className="w-3.5 h-3.5" style={{ color: "rgba(167,139,250,0.8)" }} />
-              </button>
-              <button
-                onClick={() => onDelete?.(message)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-                style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(239,68,68,0.2)",
-                }}
-                title="Delete"
-              >
-                <TrashIcon className="w-3.5 h-3.5" style={{ color: "rgba(239,68,68,0.7)" }} />
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Floating emoji picker */}
-      {showEmojiBar && !isDeleted && (
-        <div
-          ref={menuRef}
-          className="absolute z-50 flex items-center gap-1.5 px-3 py-2 rounded-2xl animate-scale-in"
-          style={{
-            bottom: "calc(100% + 8px)",
-            [isMe ? "right" : "left"]: "0",
-            background: "rgba(10,10,22,0.95)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            backdropFilter: "blur(20px)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-          }}
-        >
-          {QUICK_EMOJIS.map((emoji) => (
-            <button
-              key={emoji}
-              onClick={() => {
-                onReact?.(message._id, emoji);
-                setShowEmojiBar(false);
-              }}
-              className="text-xl hover:scale-125 transition-transform"
-              title={emoji}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Right-click context menu */}
-      {showMenu && !isDeleted && (
-        <ContextMenu
-          ref={menuRef}
-          pos={menuPos}
-          isMe={isMe}
-          onReply={() => { onReply?.(message); setShowMenu(false); }}
-          onEdit={() => { onEdit?.(message); setShowMenu(false); }}
-          onDelete={() => { onDelete?.(message); setShowMenu(false); }}
-          onReact={(e) => { onReact?.(message._id, e); setShowMenu(false); }}
-          onClose={() => setShowMenu(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-function ContextMenu({ pos, isMe, onReply, onEdit, onDelete, onReact, ref }) {
-  const style = {
-    position: "fixed",
-    top: Math.min(pos.y, window.innerHeight - 260),
-    left: Math.min(pos.x, window.innerWidth - 200),
-    zIndex: 100,
-    background: "rgba(10,10,22,0.97)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "16px",
-    backdropFilter: "blur(20px)",
-    boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
-    padding: "8px",
-    minWidth: "180px",
-    animation: "scale-in 0.15s ease-out",
+  const handleEdit = (newText) => {
+    if (newText !== message.text) editMessage.mutate({ messageId: message._id, text: newText });
+    setIsEditing(false);
   };
 
-  const item = (icon, label, onClick, danger = false) => (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-left transition-all"
-      style={{
-        color: danger ? "#f87171" : "rgba(241,245,249,0.85)",
-        background: "transparent",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = danger
-          ? "rgba(239,68,68,0.1)"
-          : "rgba(139,92,246,0.12)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-      }}
-    >
-      {icon}
-      {label}
-    </button>
-  );
+  const handleDelete = (type) => {
+    deleteMessage.mutate({ messageId: message._id, chatId: message.chat, deleteFor: type });
+    emitDeleteMessage(message._id, message.chat, type);
+    setIsDeleting(false);
+  };
 
   return (
-    <div style={style} ref={ref}>
-      {/* Quick reactions */}
-      <div className="flex items-center gap-1.5 px-3 py-2 mb-1" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        {QUICK_EMOJIS.map((e) => (
-          <button
-            key={e}
-            onClick={() => onReact(e)}
-            className="text-lg hover:scale-125 transition-transform"
-          >
-            {e}
-          </button>
-        ))}
+    <div 
+      className={`flex w-full ${isMe ? "justify-end" : "justify-start"} group relative`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => { setIsHovered(false); setShowOptions(false); }}
+    >
+      <div className={`flex max-w-[75%] gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+        
+        {/* Avatar */}
+        {showAvatar ? (
+          <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center text-slate-700 dark:text-slate-300 font-medium overflow-hidden mt-auto mb-1 border border-slate-300 dark:border-slate-600 shadow-sm">
+            {user?.avatar ? (
+              <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              user?.name?.[0]?.toUpperCase() || "U"
+            )}
+          </div>
+        ) : (
+          <div className="w-8 flex-shrink-0" />
+        )}
+
+        {/* Message Content */}
+        <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+          <div className="flex items-center gap-2 mb-1 px-1">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              {user?.name?.split(' ')[0] || "Unknown"}
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500">
+              {format(new Date(message.createdAt), "h:mm a")}
+            </span>
+          </div>
+
+          <div className="relative group/bubble flex items-center">
+            
+            {/* Options Menu */}
+            {(isHovered || showOptions || showReactions) && (
+              <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 ${isMe ? "right-full mr-2" : "left-full ml-2"}`}>
+                
+                <div className="relative">
+                  <button 
+                    onClick={() => { setShowReactions(!showReactions); setShowOptions(false); }}
+                    className="w-7 h-7 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 shadow-sm transition-colors"
+                  >
+                    <SmileIcon className="w-4 h-4" />
+                  </button>
+                  {showReactions && (
+                    <div className={`absolute z-10 top-full mt-1 ${isMe ? "right-0" : "left-0"} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg rounded-full px-2 py-1 flex gap-1`}>
+                      {["👍", "❤️", "😂", "😮", "😢"].map((emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={() => handleReact(emoji)}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-lg"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <button 
+                    onClick={() => { setShowOptions(!showOptions); setShowReactions(false); }}
+                    className="w-7 h-7 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 shadow-sm transition-colors"
+                  >
+                    <MoreHorizontalIcon className="w-4 h-4" />
+                  </button>
+                  {showOptions && (
+                    <div className={`absolute z-10 top-full mt-1 ${isMe ? "right-0" : "left-0"} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg rounded-lg py-1 w-36 overflow-hidden`}>
+                      {isMe && (
+                        <button 
+                          onClick={() => { setIsEditing(true); setShowOptions(false); }}
+                          className="w-full px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2"
+                        >
+                          <Edit2Icon className="w-4 h-4 text-slate-500" />
+                          Edit
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => { onReply?.(message); setShowOptions(false); }}
+                        className="w-full px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2"
+                      >
+                        <ReplyIcon className="w-4 h-4 text-slate-500" />
+                        Reply
+                      </button>
+                      <button 
+                        onClick={() => { setIsForwarding(true); setShowOptions(false); }}
+                        className="w-full px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2"
+                      >
+                        <ForwardIcon className="w-4 h-4 text-slate-500" />
+                        Forward
+                      </button>
+                      <button 
+                        onClick={() => { setIsDeleting(true); setShowOptions(false); }}
+                        className="w-full px-3 py-2 text-sm text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                      >
+                        <Trash2Icon className="w-4 h-4 text-red-500" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Bubble */}
+            <div 
+              className={`px-4 py-2.5 rounded-2xl shadow-sm text-[15px] leading-relaxed relative ${
+                message.deletedForEveryone
+                  ? "bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 italic border border-slate-200 dark:border-slate-700"
+                  : isMe
+                    ? "bg-primary-600 text-white rounded-br-sm"
+                    : "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-bl-sm"
+              }`}
+            >
+              {message.replyTo && !message.deletedForEveryone && (
+                <div 
+                  className={`mb-2 pl-2 border-l-2 text-xs rounded p-1.5 opacity-90 ${
+                    isMe 
+                      ? "border-white/40 bg-white/10 text-white/90" 
+                      : "border-primary-500 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400"
+                  }`}
+                >
+                  <p className="font-semibold mb-0.5">{message.replyTo.sender?.name || "User"}</p>
+                  <p className="truncate max-w-[200px]">{message.replyTo.text}</p>
+                </div>
+              )}
+              {message.isForwarded && !message.deletedForEveryone && (
+                <div className="flex items-center gap-1 mb-1 opacity-70 text-[10px] font-medium uppercase tracking-wider">
+                  <ForwardIcon className="w-3 h-3" />
+                  Forwarded
+                </div>
+              )}
+              {message.attachment && !message.deletedForEveryone && (
+                <div className="mb-2">
+                  {message.attachment.type.startsWith("image/") ? (
+                    <img 
+                      src={`http://localhost:3001${message.attachment.url}`} 
+                      alt="attachment" 
+                      className="max-w-[200px] sm:max-w-[300px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => window.open(`http://localhost:3001${message.attachment.url}`, '_blank')}
+                    />
+                  ) : (
+                    <a 
+                      href={`http://localhost:3001${message.attachment.url}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 p-2 rounded bg-slate-100/10 hover:bg-slate-100/20 transition-colors border border-slate-200/20"
+                    >
+                      <div className="w-8 h-8 flex items-center justify-center bg-slate-200/20 rounded">
+                        <span className="text-xs font-bold uppercase">{message.attachment.name.split('.').pop()}</span>
+                      </div>
+                      <span className="text-sm font-medium truncate max-w-[150px]">{message.attachment.name}</span>
+                    </a>
+                  )}
+                </div>
+              )}
+              {message.deletedForEveryone ? "This message was deleted" : message.text}
+              
+              {!message.deletedForEveryone && message.isEdited && (
+                <span className="text-[10px] opacity-70 ml-2 inline-block font-medium">(edited)</span>
+              )}
+
+              {/* Reactions display */}
+              {!message.deletedForEveryone && message.reactions?.length > 0 && (
+                <div className={`absolute -bottom-3 ${isMe ? "right-2" : "left-2"} flex gap-1`}>
+                  {Object.entries(
+                    message.reactions.reduce((acc, r) => {
+                      acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                      return acc;
+                    }, {})
+                  ).map(([emoji, count]) => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleReact(emoji)}
+                      className="flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full shadow-sm text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      <span>{emoji}</span>
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">{count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {isMe && !message.deletedForEveryone && (
+            <div className="flex items-center gap-1 mt-1 pr-1 opacity-70">
+              <CheckCheckIcon className={`w-3.5 h-3.5 ${message.readBy?.length > 0 ? "text-primary-500" : "text-slate-400"}`} />
+            </div>
+          )}
+        </div>
       </div>
-      {item(<ReplyIcon className="w-4 h-4" />, "Reply", onReply)}
-      {isMe && item(<PencilIcon className="w-4 h-4" />, "Edit", onEdit)}
-      {isMe && item(<TrashIcon className="w-4 h-4" />, "Delete", onDelete, true)}
+
+      {isEditing && (
+        <EditMessageModal message={message} onConfirm={handleEdit} onClose={() => setIsEditing(false)} />
+      )}
+      {isDeleting && (
+        <DeleteMessageModal message={message} isMe={isMe} onConfirm={handleDelete} onClose={() => setIsDeleting(false)} />
+      )}
+      {isForwarding && (
+        <ForwardMessageModal message={message} onClose={() => setIsForwarding(false)} />
+      )}
     </div>
   );
 }

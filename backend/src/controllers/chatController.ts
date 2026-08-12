@@ -51,13 +51,40 @@ export async function getChats(req: AuthRequest, res: Response, next: NextFuncti
   }
 }
 
-// ── Get or create a chat ──────────────────────────────────────────────────────
+// ── Get or create a chat (via GET /:participantId) ───────────────────────────
 export async function getOrCreateChat(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const userId = req.userId!;
     const { participantId } = req.params;
 
     if (!participantId) return res.status(400).json({ message: "Participant ID is required" });
+    if (!Types.ObjectId.isValid(participantId)) return res.status(400).json({ message: "Invalid participant ID" });
+    if (userId === participantId) return res.status(400).json({ message: "Cannot create chat with yourself" });
+
+    let chat = await Chat.findOne({ participants: { $all: [userId, participantId] } })
+      .populate("participants", "name email avatar")
+      .populate({ path: "lastMessage", populate: { path: "sender", select: "name" } });
+
+    if (!chat) {
+      const newChat = new Chat({ participants: [userId, participantId] });
+      await newChat.save();
+      chat = await newChat.populate("participants", "name email avatar");
+    }
+
+    res.json(formatChat(chat, userId));
+  } catch (error) {
+    res.status(500);
+    next(error);
+  }
+}
+
+// ── Create or get a chat (via POST /chats with body) ─────────────────────────
+export async function createChat(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const userId = req.userId!;
+    const { participantId } = req.body;
+
+    if (!participantId) return res.status(400).json({ message: "participantId is required" });
     if (!Types.ObjectId.isValid(participantId)) return res.status(400).json({ message: "Invalid participant ID" });
     if (userId === participantId) return res.status(400).json({ message: "Cannot create chat with yourself" });
 

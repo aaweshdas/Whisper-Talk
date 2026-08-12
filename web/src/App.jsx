@@ -1,8 +1,8 @@
 import { Navigate, Route, Routes } from "react-router";
 import { useEffect } from "react";
-import HomePage from "./pages/HomePage";
-import AuthPage from "./pages/AuthPage";
-import ChatPage from "./pages/ChatPage";
+import { HomePage } from "./pages/HomePage";
+import { AuthPage } from "./pages/AuthPage";
+import { ChatPage } from "./pages/ChatPage";
 import PageLoader from "./components/PageLoader";
 import { MessageToastContainer } from "./components/MessageToast";
 import { useAuthStore } from "./lib/auth";

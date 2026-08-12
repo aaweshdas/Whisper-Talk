@@ -41,15 +41,10 @@ export const useAuthStore = create((set, get) => ({
   },
 
   // ── Register ─────────────────────────────────────────────────────────────
-  register: async (username, password) => {
+  register: async (name, email, password) => {
     set({ status: "loading", error: null });
     try {
-      const email = `${username.trim().toLowerCase().replace(/\s+/g, "_")}@whisper.app`;
-      const { data } = await api.post("/auth/register", {
-        name: username.trim(),
-        email,
-        password,
-      });
+      const { data } = await api.post("/auth/register", { name, email, password });
       saveToken(data.token);
       set({ token: data.token, user: data.user, status: "authenticated", error: null });
     } catch (err) {
@@ -59,16 +54,24 @@ export const useAuthStore = create((set, get) => ({
   },
 
   // ── Login ────────────────────────────────────────────────────────────────
-  login: async (username, password) => {
+  login: async (email, password) => {
     set({ status: "loading", error: null });
     try {
-      const email = `${username.trim().toLowerCase().replace(/\s+/g, "_")}@whisper.app`;
+      // First try with the real email the user typed
       const { data } = await api.post("/auth/login", { email, password });
       saveToken(data.token);
       set({ token: data.token, user: data.user, status: "authenticated", error: null });
-    } catch (err) {
-      const msg = err.response?.data?.message ?? "Login failed";
-      set({ status: "unauthenticated", error: msg });
+    } catch (firstErr) {
+      // Fallback: accounts created before the email fix were stored with a fake @whisper.app address
+      try {
+        const legacyEmail = `${email.trim().toLowerCase().replace(/[@.\s]+/g, "_")}@whisper.app`;
+        const { data } = await api.post("/auth/login", { email: legacyEmail, password });
+        saveToken(data.token);
+        set({ token: data.token, user: data.user, status: "authenticated", error: null });
+      } catch {
+        const msg = firstErr.response?.data?.message ?? "Invalid email or password";
+        set({ status: "unauthenticated", error: msg });
+      }
     }
   },
 
