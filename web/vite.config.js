@@ -12,11 +12,13 @@ export default defineConfig({
     },
   },
   build: {
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router', 'axios', 'zustand', '@tanstack/react-query'],
+          emoji: ['emoji-picker-react'],
+          icons: ['lucide-react']
         },
       },
     },
