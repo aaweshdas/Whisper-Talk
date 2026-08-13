@@ -222,12 +222,12 @@ export const useSocketStore = create((set, get) => ({
     });
 
     socket.on("call-rejected", () => {
-      set({ callState: "ended", activeCallUserId: null });
+      set({ callState: "ended", activeCallUserId: null, remoteSignal: null, iceCandidates: [] });
       setTimeout(() => set({ callState: "idle" }), 2000);
     });
 
     socket.on("call-ended", () => {
-      set({ callState: "ended", incomingCall: null, activeCallUserId: null });
+      set({ callState: "ended", incomingCall: null, activeCallUserId: null, remoteSignal: null, iceCandidates: [] });
       setTimeout(() => set({ callState: "idle" }), 2000);
     });
 

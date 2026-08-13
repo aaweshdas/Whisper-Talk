@@ -146,6 +146,7 @@ export function VideoCallModal() {
     isStartingRef.current = false;
     remoteDescSetRef.current = false;
     pendingIceCandidatesRef.current = [];
+    useSocketStore.setState({ remoteSignal: null, iceCandidates: [] });
   }, [localStream]);
 
 
@@ -242,6 +243,18 @@ export function VideoCallModal() {
 
       await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.signal));
       remoteDescSetRef.current = true;
+
+      // Apply any ICE candidates the caller sent while we were ringing
+      const accumulatedCandidates = useSocketStore.getState().iceCandidates;
+      for (const candidate of accumulatedCandidates) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.warn("[webrtc] inline addIceCandidate error:", err);
+        }
+      }
+      useSocketStore.setState({ iceCandidates: [] });
+
       await flushPendingCandidates();
 
       const answer = await pc.createAnswer();
