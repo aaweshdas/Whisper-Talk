@@ -16,7 +16,7 @@ import { MessageBubble } from "../components/MessageBubble";
 import { ChatInput } from "../components/ChatInput";
 import { SearchBar } from "../components/SearchBar";
 import { NewChatModal } from "../components/NewChatModal";
-import { VideoCallModal } from "../components/VideoCallModal";
+import { GroupCallModal } from "../components/GroupCallModal";
 import { SettingsModal } from "../components/SettingsModal";
 
 export function ChatPage() {
@@ -176,9 +176,10 @@ export function ChatPage() {
 
       {/* ── MAIN CONTENT (Chat Area) ── */}
       <main className="flex-1 flex flex-col relative min-w-0 bg-black/40 backdrop-blur-xl lg:rounded-3xl border border-white/20 shadow-2xl overflow-hidden">
-        {activeChatId && activeChatUser ? (
+        {activeChatId && activeChat ? (
           <>
             <ChatHeader 
+              chat={activeChat}
               user={activeChatUser} 
               chatId={activeChatId}
               onToggleInfo={() => setShowInfoPanel(!showInfoPanel)} 
@@ -272,7 +273,7 @@ export function ChatPage() {
         setShowNewChat(false); 
       }} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
-      <VideoCallModal />
+      <GroupCallModal />
     </div>
   );
 }

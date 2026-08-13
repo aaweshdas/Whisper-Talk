@@ -14,7 +14,12 @@ function formatChat(chat: any, userId: string) {
 
   return {
     _id: chat._id,
-    participant: otherParticipant ?? null,
+    isGroupChat: chat.isGroupChat || false,
+    chatName: chat.chatName,
+    groupAdmin: chat.groupAdmin,
+    groupAvatar: chat.groupAvatar,
+    participants: chat.participants,
+    participant: chat.isGroupChat ? null : otherParticipant ?? null,
     lastMessage: chat.lastMessage,
     lastMessageAt: chat.lastMessageAt,
     createdAt: chat.createdAt,
@@ -61,7 +66,7 @@ export async function getOrCreateChat(req: AuthRequest, res: Response, next: Nex
     if (!Types.ObjectId.isValid(participantId)) return res.status(400).json({ message: "Invalid participant ID" });
     if (userId === participantId) return res.status(400).json({ message: "Cannot create chat with yourself" });
 
-    let chat = await Chat.findOne({ participants: { $all: [userId, participantId] } })
+    let chat = await Chat.findOne({ isGroupChat: { $ne: true }, participants: { $all: [userId, participantId], $size: 2 } })
       .populate("participants", "name email avatar lastSeen")
       .populate({ path: "lastMessage", populate: { path: "sender", select: "name" } });
 
@@ -88,7 +93,7 @@ export async function createChat(req: AuthRequest, res: Response, next: NextFunc
     if (!Types.ObjectId.isValid(participantId)) return res.status(400).json({ message: "Invalid participant ID" });
     if (userId === participantId) return res.status(400).json({ message: "Cannot create chat with yourself" });
 
-    let chat = await Chat.findOne({ participants: { $all: [userId, participantId] } })
+    let chat = await Chat.findOne({ isGroupChat: { $ne: true }, participants: { $all: [userId, participantId], $size: 2 } })
       .populate("participants", "name email avatar lastSeen")
       .populate({ path: "lastMessage", populate: { path: "sender", select: "name" } });
 
@@ -99,6 +104,41 @@ export async function createChat(req: AuthRequest, res: Response, next: NextFunc
     }
 
     res.json(formatChat(chat, userId));
+  } catch (error) {
+    res.status(500);
+    next(error);
+  }
+}
+
+// ── Create a group chat ───────────────────────────────────────────────────────
+export async function createGroupChat(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const userId = req.userId!;
+    const { userIds, name } = req.body;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: "Participant IDs are required" });
+    }
+    if (!name) {
+      return res.status(400).json({ message: "Group name is required" });
+    }
+
+    const participants = Array.from(new Set([userId, ...userIds]));
+
+    if (participants.length < 2) {
+      return res.status(400).json({ message: "More than 1 participant is required for a group" });
+    }
+
+    const newChat = new Chat({
+      isGroupChat: true,
+      chatName: name,
+      participants,
+      groupAdmin: userId,
+    });
+    await newChat.save();
+    
+    const chat = await newChat.populate("participants", "name email avatar lastSeen");
+    res.status(201).json(formatChat(chat, userId));
   } catch (error) {
     res.status(500);
     next(error);

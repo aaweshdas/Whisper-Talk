@@ -50,24 +50,24 @@ function MessageToast({ toast, onDismiss }) {
           display: "flex",
           alignItems: "center",
           gap: "16px",
-          padding: "18px 24px 18px 60px", // Extra left padding for the planet area
+          padding: "24px 32px 24px 140px", // Huge left padding to clear the planet
           borderRadius: "16px",
-          // Use the exact image the user provided
-          background: "url('/toast-bg.png') center/cover no-repeat",
+          // Force the background to stretch to fit the toast's borders so the frame looks right
+          background: "url('/toast-bg.png') center / 100% 100% no-repeat",
           boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(139, 92, 246, 0.4)",
-          border: "2px solid rgba(255, 255, 255, 0.15)",
-          minWidth: "350px",
-          maxWidth: "450px",
+          minWidth: "400px",
+          maxWidth: "500px",
+          minHeight: "100px",
           position: "relative",
-          overflow: "visible", // Allow planet to overflow if needed
+          overflow: "visible", 
+          border: "none", // Remove CSS border since the image has a drawn glowing border
         }}
       >
-        {/* We don't need the CSS planet because the image already has the planet on the left side! */}
-        {/* We just need to position the initial overlay over where the planet is in the image */}
+        {/* We place the sender's initial precisely over the core of the glowing planet */}
         <div
           style={{
             position: "absolute",
-            left: "5%", // Adjust based on where the planet is in the image
+            left: "8%", // Center over the planet
             top: "50%",
             transform: "translateY(-50%)",
             width: 48,
@@ -75,18 +75,18 @@ function MessageToast({ toast, onDismiss }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 22,
+            fontSize: 26,
             fontWeight: 900,
             color: "#fff",
-            textShadow: "0 0 10px rgba(0,0,0,0.8), 0 0 20px rgba(0, 198, 255, 0.8)",
+            textShadow: "0 0 10px rgba(0,0,0,1), 0 0 20px rgba(0, 198, 255, 1)",
             pointerEvents: "none",
           }}
         >
           {initial}
         </div>
 
-        {/* Text */}
-        <div style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 2, paddingLeft: "15%" }}>
+        {/* Text Area */}
+        <div style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 2 }}>
           <p
             style={{
               margin: 0,

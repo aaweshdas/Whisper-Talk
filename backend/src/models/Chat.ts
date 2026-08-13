@@ -7,6 +7,10 @@ export interface IMutedEntry {
 
 export interface IChat extends Document {
   participants: mongoose.Types.ObjectId[];
+  isGroupChat?: boolean;
+  chatName?: string;
+  groupAdmin?: mongoose.Types.ObjectId;
+  groupAvatar?: string;
   lastMessage?: mongoose.Types.ObjectId;
   lastMessageAt?: Date;
   pinnedBy: mongoose.Types.ObjectId[];
@@ -28,6 +32,10 @@ const MutedSchema = new Schema<IMutedEntry>(
 const ChatSchema = new Schema<IChat>(
   {
     participants: [{ type: Schema.Types.ObjectId, ref: "User", required: true }],
+    isGroupChat: { type: Boolean, default: false },
+    chatName: { type: String, trim: true },
+    groupAdmin: { type: Schema.Types.ObjectId, ref: "User" },
+    groupAvatar: { type: String, default: "" },
     lastMessage: { type: Schema.Types.ObjectId, ref: "Message", default: null },
     lastMessageAt: { type: Date, default: Date.now },
     pinnedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],

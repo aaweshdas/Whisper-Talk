@@ -2,16 +2,20 @@ import { VideoIcon, PhoneIcon, MoreVerticalIcon, InfoIcon } from "lucide-react";
 import { useSocketStore } from "../lib/socket";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
-export function ChatHeader({ user, chatId, onToggleInfo }) {
-  const { startCall, onlineUsers, typingUsers } = useSocketStore();
+export function ChatHeader({ chat, user, chatId, onToggleInfo }) {
+  const { startGroupCall, joinGroupCall, activeGroupCalls, onlineUsers, typingUsers } = useSocketStore();
   const { data: currentUser } = useCurrentUser();
 
-  const handleVideoCall = () => {
-    startCall(user._id, "video");
+  const activeCall = activeGroupCalls[chatId];
+  const isInCall = activeCall?.participants?.includes(currentUser?._id);
+  const isCallActive = !!activeCall;
+
+  const handleStartCall = () => {
+    startGroupCall(chatId, "video");
   };
 
-  const handleVoiceCall = () => {
-    startCall(user._id, "voice");
+  const handleJoinCall = () => {
+    joinGroupCall(chatId);
   };
 
   const isOnline = onlineUsers.has(user?._id);
@@ -41,7 +45,13 @@ export function ChatHeader({ user, chatId, onToggleInfo }) {
     <div className="h-24 px-6 flex items-center justify-between bg-slate-900/60 backdrop-blur-xl border-b border-white/5 z-10 sticky top-0 shadow-sm">
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-medium overflow-hidden border-2 border-white/10 shadow-sm shrink-0">
-          {user?.avatar ? (
+          {chat?.isGroupChat ? (
+            chat.groupAvatar ? (
+              <img src={chat.groupAvatar} alt={chat.chatName} className="w-full h-full object-cover" />
+            ) : (
+              chat.chatName?.[0]?.toUpperCase() || "G"
+            )
+          ) : user?.avatar ? (
             <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
           ) : (
             user?.name?.[0]?.toUpperCase() || "U"
@@ -49,10 +59,14 @@ export function ChatHeader({ user, chatId, onToggleInfo }) {
         </div>
         <div className="flex flex-col">
           <span className="font-bold text-lg text-white leading-tight drop-shadow-sm">
-            {user?.name || "Unknown User"}
+            {chat?.isGroupChat ? chat.chatName : (user?.name || "Unknown User")}
           </span>
           <div className="flex items-center gap-1.5 mt-0.5">
-            {isTyping ? (
+            {chat?.isGroupChat ? (
+              <span className="text-xs font-medium text-slate-400">
+                {chat.participants?.length || 0} participants
+              </span>
+            ) : isTyping ? (
               <>
                 <span className="text-xs font-medium text-primary-500 italic">Typing...</span>
               </>
@@ -71,18 +85,36 @@ export function ChatHeader({ user, chatId, onToggleInfo }) {
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-3">
-        <button 
-          onClick={handleVoiceCall}
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-300 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-        >
-          <PhoneIcon className="w-5 h-5" />
-        </button>
-        <button 
-          onClick={handleVideoCall}
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-300 hover:text-primary-400 hover:bg-primary-500/10 transition-colors"
-        >
-          <VideoIcon className="w-5 h-5" />
-        </button>
+        {chat?.isGroupChat && (
+          isCallActive && !isInCall ? (
+            <button 
+              onClick={handleJoinCall}
+              className="px-4 py-2 rounded-xl flex items-center gap-2 text-white bg-emerald-500 hover:bg-emerald-600 font-medium transition-colors shadow-lg shadow-emerald-500/20 animate-pulse"
+            >
+              <VideoIcon className="w-4 h-4" />
+              <span>Join Call</span>
+            </button>
+          ) : (
+            <button 
+              onClick={handleStartCall}
+              disabled={isInCall}
+              className="px-4 py-2 rounded-xl flex items-center gap-2 text-white bg-primary-500 hover:bg-primary-600 font-medium transition-colors shadow-lg shadow-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <VideoIcon className="w-4 h-4" />
+              <span>{isInCall ? "In Call" : "Group Call"}</span>
+            </button>
+          )
+        )}
+        {!chat?.isGroupChat && (
+          <>
+            <button className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 cursor-not-allowed" title="Legacy 1-on-1 calls removed">
+              <PhoneIcon className="w-5 h-5" />
+            </button>
+            <button className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 cursor-not-allowed" title="Legacy 1-on-1 calls removed">
+              <VideoIcon className="w-5 h-5" />
+            </button>
+          </>
+        )}
         <div className="w-px h-6 bg-white/10 mx-2 hidden sm:block"></div>
         <button 
           onClick={onToggleInfo}

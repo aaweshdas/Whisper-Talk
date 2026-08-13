@@ -4,6 +4,7 @@ import {
   getChats,
   getOrCreateChat,
   createChat,
+  createGroupChat,
   togglePinChat,
   toggleArchiveChat,
   toggleMuteChat,
@@ -15,6 +16,7 @@ router.use(protectRoute);
 
 router.get("/", getChats);
 router.post("/", createChat);
+router.post("/group", createGroupChat);
 router.get("/:participantId", getOrCreateChat);
 router.patch("/:chatId/pin", togglePinChat);
 router.patch("/:chatId/archive", toggleArchiveChat);

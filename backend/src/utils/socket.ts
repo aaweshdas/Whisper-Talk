@@ -239,31 +239,29 @@ export function initializeSocket(httpServer: HttpServer) {
       }
     });
 
-    // ── VIDEO CALLING WEBRTC SIGNALING ───────────────────────────────────────
-    socket.on("call-user", (data: { userToCall: string; signalData: any; from: string; name: string; avatar: string; type: string }) => {
-      io.to(data.userToCall).emit("call-user", {
-        signal: data.signalData,
-        from: data.from,
-        name: data.name,
-        avatar: data.avatar,
-        type: data.type
-      });
+    // ── VIDEO CALLING MESH SIGNALING ───────────────────────────────────────
+    socket.on("start-group-call", (data: { chatId: string; from: string; type: string }) => {
+      io.to(data.chatId).emit("start-group-call", data);
     });
 
-    socket.on("answer-call", (data: { to: string; signal: any }) => {
-      io.to(data.to).emit("call-accepted", data.signal);
+    socket.on("join-group-call", (data: { chatId: string; peerId: string }) => {
+      io.to(data.chatId).emit("join-group-call", data);
     });
 
-    socket.on("reject-call", (data: { to: string }) => {
-      io.to(data.to).emit("call-rejected");
+    socket.on("leave-group-call", (data: { chatId: string; peerId: string }) => {
+      io.to(data.chatId).emit("leave-group-call", data);
     });
 
-    socket.on("end-call", (data: { to: string }) => {
-      io.to(data.to).emit("call-ended");
+    socket.on("webrtc-offer", (data: { targetPeerId: string; offer: any; fromPeerId: string }) => {
+      io.to(data.targetPeerId).emit("webrtc-offer", data);
     });
 
-    socket.on("webrtc-ice-candidate", (data: { to: string; candidate: any }) => {
-      io.to(data.to).emit("webrtc-ice-candidate", data.candidate);
+    socket.on("webrtc-answer", (data: { targetPeerId: string; answer: any; fromPeerId: string }) => {
+      io.to(data.targetPeerId).emit("webrtc-answer", data);
+    });
+
+    socket.on("webrtc-ice-candidate", (data: { targetPeerId: string; candidate: any; fromPeerId: string }) => {
+      io.to(data.targetPeerId).emit("webrtc-ice-candidate", data);
     });
 
     // ── DISCONNECT ────────────────────────────────────────────────────────────

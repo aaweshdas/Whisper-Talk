@@ -6,6 +6,8 @@ import { useChats } from "../hooks/useChats";
 
 export function NewChatModal({ onClose, onSelect }) {
   const [search, setSearch] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [groupName, setGroupName] = useState("");
   const { data: chats, refetch: refetchChats } = useChats();
 
   const { data: users, isLoading } = useQuery({
@@ -18,9 +20,27 @@ export function NewChatModal({ onClose, onSelect }) {
     enabled: search.length > 0,
   });
 
-  const handleCreateChat = async (userId) => {
+  const toggleUser = (user) => {
+    setSelectedUsers(prev => 
+      prev.some(u => u._id === user._id) 
+        ? prev.filter(u => u._id !== user._id) 
+        : [...prev, user]
+    );
+  };
+
+  const handleCreateChat = async () => {
+    if (selectedUsers.length === 0) return;
     try {
-      const res = await api.post("/chats", { participantId: userId });
+      let res;
+      if (selectedUsers.length === 1) {
+        res = await api.post("/chats", { participantId: selectedUsers[0]._id });
+      } else {
+        if (!groupName.trim()) return; // Require group name
+        res = await api.post("/chats/group", { 
+          userIds: selectedUsers.map(u => u._id), 
+          name: groupName 
+        });
+      }
       await refetchChats();
       onSelect(res.data._id);
     } catch (err) {
@@ -48,18 +68,50 @@ export function NewChatModal({ onClose, onSelect }) {
           </button>
         </div>
 
-        {/* Search Input */}
+        {/* Search & Selection Info */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-          <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search users by name or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-standard pl-9"
-              autoFocus
-            />
+          {selectedUsers.length > 1 && (
+            <div className="mb-3">
+              <input
+                type="text"
+                placeholder="Enter Group Name..."
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="input-standard bg-slate-100/50 dark:bg-black/50 border-primary-500/30 focus:border-primary-500"
+                autoFocus
+              />
+            </div>
+          )}
+          {selectedUsers.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {selectedUsers.map(u => (
+                <div key={u._id} className="flex items-center gap-1 bg-primary-500/20 text-primary-400 px-2.5 py-1 rounded-lg text-xs font-medium">
+                  {u.name}
+                  <button onClick={() => toggleUser(u)} className="hover:text-primary-300"><XIcon className="w-3 h-3" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="relative flex items-center gap-2">
+            <div className="relative flex-1">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search users to add..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input-standard pl-9"
+              />
+            </div>
+            {selectedUsers.length > 0 && (
+              <button 
+                onClick={handleCreateChat}
+                disabled={selectedUsers.length > 1 && !groupName.trim()}
+                className="px-4 py-2.5 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white rounded-xl font-medium text-sm shadow-lg shadow-primary-500/20 transition-all shrink-0"
+              >
+                {selectedUsers.length > 1 ? "Create Group" : "Chat"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -80,25 +132,33 @@ export function NewChatModal({ onClose, onSelect }) {
             </div>
           ) : (
             <div className="space-y-1">
-              {users?.map((user) => (
-                <button
-                  key={user._id}
-                  onClick={() => handleCreateChat(user._id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left"
-                >
-                  <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-medium overflow-hidden shrink-0 border border-slate-300 dark:border-slate-600 shadow-sm">
-                    {user.avatar ? (
-                      <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      user.name[0].toUpperCase()
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{user.name}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
-                  </div>
-                </button>
-              ))}
+              {users?.map((user) => {
+                const isSelected = selectedUsers.some(u => u._id === user._id);
+                return (
+                  <button
+                    key={user._id}
+                    onClick={() => toggleUser(user)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-colors text-left ${isSelected ? "bg-primary-500/10 border border-primary-500/20" : "hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent"}`}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-medium overflow-hidden shrink-0 shadow-sm relative">
+                      {user.avatar ? (
+                        <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        user.name[0].toUpperCase()
+                      )}
+                      {isSelected && (
+                        <div className="absolute inset-0 bg-primary-500/80 flex items-center justify-center">
+                          <span className="text-white text-xs">✓</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{user.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

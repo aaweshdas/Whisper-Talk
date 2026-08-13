@@ -15,10 +15,8 @@ export const useSocketStore = create((set, get) => ({
 
   // WebRTC Call State (always video+audio — no voice-only mode)
   incomingCall: null, // { from, name, avatar, signal }
-  callState: "idle", // idle | calling | ringing | connected | ended
-  remoteSignal: null,
-  activeCallUserId: null,
-  iceCandidates: [],
+  activeGroupCalls: {}, // { [chatId]: { participants: [], type: "video" } }
+  currentCallChatId: null, // The chat we are currently in a call for
 
   connect: (token, queryClient, userId) => {
     const existingSocket = get().socket;
@@ -213,26 +211,48 @@ export const useSocketStore = create((set, get) => ({
     });
 
     // ── WebRTC Signaling Events ──────────────────────────────────────────────
-    socket.on("call-user", ({ from, name, avatar, signal, type }) => {
-      set({ incomingCall: { from, name, avatar, signal, type }, callState: "ringing" });
+    socket.on("start-group-call", ({ chatId, from, type }) => {
+      set((state) => ({
+        activeGroupCalls: {
+          ...state.activeGroupCalls,
+          [chatId]: { participants: [from], type }
+        }
+      }));
     });
 
-    socket.on("call-accepted", (signal) => {
-      set({ callState: "connected", remoteSignal: signal });
+    socket.on("join-group-call", ({ chatId, peerId }) => {
+      set((state) => {
+        const call = state.activeGroupCalls[chatId];
+        if (!call) return state;
+        const participants = [...new Set([...call.participants, peerId])];
+        return {
+          activeGroupCalls: {
+            ...state.activeGroupCalls,
+            [chatId]: { ...call, participants }
+          }
+        };
+      });
     });
 
-    socket.on("call-rejected", () => {
-      set({ callState: "ended", activeCallUserId: null, remoteSignal: null, iceCandidates: [] });
-      setTimeout(() => set({ callState: "idle" }), 2000);
-    });
-
-    socket.on("call-ended", () => {
-      set({ callState: "ended", incomingCall: null, activeCallUserId: null, remoteSignal: null, iceCandidates: [] });
-      setTimeout(() => set({ callState: "idle" }), 2000);
-    });
-
-    socket.on("webrtc-ice-candidate", (candidate) => {
-      set((state) => ({ iceCandidates: [...state.iceCandidates, candidate] }));
+    socket.on("leave-group-call", ({ chatId, peerId }) => {
+      set((state) => {
+        const call = state.activeGroupCalls[chatId];
+        if (!call) return state;
+        const participants = call.participants.filter((p) => p !== peerId);
+        
+        if (participants.length === 0) {
+          const newCalls = { ...state.activeGroupCalls };
+          delete newCalls[chatId];
+          return { activeGroupCalls: newCalls };
+        }
+        
+        return {
+          activeGroupCalls: {
+            ...state.activeGroupCalls,
+            [chatId]: { ...call, participants }
+          }
+        };
+      });
     });
 
     set({ socket, queryClient });
@@ -315,43 +335,20 @@ export const useSocketStore = create((set, get) => ({
     get().socket?.emit("mark-delivered", { chatId, userId, messageIds });
   },
 
-  // ── WebRTC Actions (always video+audio) ──────────────────────────────────
-  activeCallType: "video", // "video" | "voice"
-  startCall: (userToCallId, type = "video") => {
-    set({ callState: "calling", activeCallUserId: userToCallId, activeCallType: type, iceCandidates: [], remoteSignal: null });
+  // ── WebRTC Mesh Group Call Actions ──────────────────────────────────────
+  
+  startGroupCall: (chatId, type = "video") => {
+    set({ currentCallChatId: chatId });
+    get().socket?.emit("start-group-call", { chatId, type });
   },
 
-  initiateCall: (userToCall, signalData, currentUser, type = "video") => {
-    get().socket?.emit("call-user", {
-      userToCall,
-      signalData,
-      from: currentUser._id,
-      name: currentUser.name || currentUser.fullName || currentUser.firstName || "You",
-      avatar: currentUser.avatar || currentUser.imageUrl,
-      type,
-    });
+  joinGroupCall: (chatId) => {
+    set({ currentCallChatId: chatId });
+    get().socket?.emit("join-group-call", { chatId });
   },
 
-  answerCall: (to, signal) => {
-    set({ callState: "connected", incomingCall: null, activeCallUserId: to, iceCandidates: [] });
-    get().socket?.emit("answer-call", { to, signal });
+  leaveGroupCall: (chatId) => {
+    set({ currentCallChatId: null });
+    get().socket?.emit("leave-group-call", { chatId });
   },
-
-  rejectCall: (to) => {
-    set({ incomingCall: null, callState: "idle" });
-    if (to) get().socket?.emit("reject-call", { to });
-  },
-
-  endCall: (to) => {
-    set({ callState: "idle", incomingCall: null, activeCallUserId: null, remoteSignal: null, iceCandidates: [] });
-    if (to) get().socket?.emit("end-call", { to });
-  },
-
-  sendIceCandidate: (to, candidate) => {
-    if (to) get().socket?.emit("webrtc-ice-candidate", { to, candidate });
-  },
-
-  clearCallState: () => {
-     set({ callState: "idle", incomingCall: null, activeCallUserId: null, remoteSignal: null, iceCandidates: [] });
-  }
 }));
