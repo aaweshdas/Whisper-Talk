@@ -40,13 +40,6 @@ export function VideoCallModal() {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   
-  const attachLocalVideo = useCallback((node) => {
-    localVideoRef.current = node;
-    if (node && localStream) {
-      node.srcObject = localStream;
-    }
-  }, [localStream]);
-
   const peerConnectionRef = useRef(null);
   const isStartingRef = useRef(false);
   const pendingIceCandidatesRef = useRef([]);
@@ -58,6 +51,28 @@ export function VideoCallModal() {
   const isRinging = callState === "ringing";
   const isConnected = callState === "connected";
   const isEnded = callState === "ended";
+
+  // Centralized stream management
+  useEffect(() => {
+    const attachStream = async (videoElement, stream) => {
+      if (!videoElement || !stream) return;
+      videoElement.srcObject = stream;
+      try {
+        await videoElement.play();
+      } catch (err) {
+        console.warn("[webrtc] auto-play prevented:", err);
+      }
+    };
+
+    if (localVideoRef.current) {
+      attachStream(localVideoRef.current, localStream);
+    }
+    
+    // We only attach the remote stream if we are fully connected
+    if (remoteVideoRef.current && isConnected) {
+      attachStream(remoteVideoRef.current, remoteStream);
+    }
+  }, [localStream, remoteStream, isConnected]);
 
   const configuration = {
     iceServers: [
@@ -133,19 +148,6 @@ export function VideoCallModal() {
     pendingIceCandidatesRef.current = [];
   }, [localStream]);
 
-  useEffect(() => {
-    if (callState === "idle" || callState === "ended") {
-      cleanup();
-      setIsMuted(false);
-      setIsVideoOff(false);
-    }
-  }, [callState]);
-
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
 
   const createPeerConnection = useCallback((targetUserId) => {
     const pc = new RTCPeerConnection(configuration);
@@ -355,7 +357,7 @@ export function VideoCallModal() {
           {/* Small local preview */}
           {localStream && (
             <div className="w-48 h-32 rounded-xl overflow-hidden mb-8 relative border border-slate-200 dark:border-slate-800 shadow-sm bg-black">
-              <video ref={attachLocalVideo} autoPlay playsInline muted className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+              <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
             </div>
           )}
 
@@ -410,7 +412,7 @@ export function VideoCallModal() {
               style={{ opacity: showControls ? 1 : 0.6 }}
             >
               <video
-                ref={attachLocalVideo}
+                ref={localVideoRef}
                 autoPlay
                 playsInline
                 muted
