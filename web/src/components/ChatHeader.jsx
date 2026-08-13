@@ -105,16 +105,7 @@ export function ChatHeader({ chat, user, chatId, onToggleInfo }) {
             </button>
           )
         )}
-        {!chat?.isGroupChat && (
-          <>
-            <button className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 cursor-not-allowed" title="Legacy 1-on-1 calls removed">
-              <PhoneIcon className="w-5 h-5" />
-            </button>
-            <button className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 cursor-not-allowed" title="Legacy 1-on-1 calls removed">
-              <VideoIcon className="w-5 h-5" />
-            </button>
-          </>
-        )}
+        {/* 1-on-1 calls have been removed as per user request */}
         <div className="w-px h-6 bg-white/10 mx-2 hidden sm:block"></div>
         <button 
           onClick={onToggleInfo}
